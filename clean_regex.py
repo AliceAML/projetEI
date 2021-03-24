@@ -1,15 +1,13 @@
+"""
+Annotates texts to indicate which words are EI forms.
+"""
+
 import sys
 
 sys.path.append("../codeEI")
 
 import regex as re
 from findEI import isEI
-
-"""
-Annotates texts to indicate which words are EI forms.
-"""
-
-name = "corpus/infokiosque/infokiosque_252"
 
 
 def load_file(filename):
@@ -21,6 +19,10 @@ def load_file(filename):
 
     return output
 
+
+# if script launched as main
+if __name__ == "__main__":
+    name = sys.argv[1]
 
 text = load_file(name)
 sentences = re.split(r"(?<=\.|\?|\!)\s", text)
@@ -49,8 +51,11 @@ def tokenize(sentence: str) -> list:
     ]
 
 
-def labelling(sentences):
-    """Label words in a sentence (EI or not EI)"""
+def labelling(sentences: list) -> list:
+    """
+    Label words in a list of sentences (EI or not EI)
+    Returns a list of annotated sentences.
+    """
     out = []
     for one_sentence in sentences:
         tempwords = tokenize(one_sentence)
@@ -66,6 +71,9 @@ def labelling(sentences):
 
 
 labels = labelling(sentences)
+
+if sys.argv[2] == "-v":
+    print(labels)
 
 
 for i in labels:
