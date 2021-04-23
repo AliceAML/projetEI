@@ -1,7 +1,7 @@
 import urllib.request, urllib.error, urllib.parse
 from lxml.html import fromstring
 
-"""Script modifié à à partir d'un script de Guillaume Wisniewski"""
+"""Script modifiï¿½ ï¿½ ï¿½ partir d'un script de Guillaume Wisniewski"""
 
 urlprefix = "https://infokiosques.net/lire.php?id_article={}"
 

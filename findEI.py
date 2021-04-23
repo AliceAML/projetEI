@@ -147,7 +147,7 @@ def isEI(word: str) -> bool:
     # pronoms, noms de domaine...
     # liste établie avec terminaisons_communes.py
     terminaisons = (
-        "être",
+        "-être",
         "-même",
         "-mêmes",
         "-il",
@@ -239,6 +239,7 @@ def isEI(word: str) -> bool:
     # iel, iels, ielle, ielles (?)
     elif word.lower().startswith("iel") and len(word) <= 6:
         return True
+    return False
 
 
 # 3 TYPES A MATCHER
