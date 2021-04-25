@@ -2,8 +2,6 @@
 Annotates texts to indicate which words are EI forms.
 """
 
-# TODO annottation type conLL !
-
 import sys
 import os
 
