@@ -31,6 +31,8 @@ for mot in mots_m:
 eis = [l.strip() for l in open("../liste_ei_ex").readlines()]
 
 #%% recherche mot + similaire
+
+
 def argmin(dico):
     try:
         return min(dico.items(), key=lambda x: x[1])[0]
@@ -39,14 +41,14 @@ def argmin(dico):
 
 
 def closest_match(ei):
-    base = re.sub("[A-Z]", "", ei)
-    if not base.isalpha():
-        sep = [char for char in ei if not char.isalpha()][0]
-        base = base.split(sep)[0]
+    base = re.sub("[ES]", "", ei)  # retire les E et S majuscules
+    if not base.isalpha():  # si y'a des séparateurs
+        sep = [char for char in ei if not char.isalpha()][0]  # on récupère le sep
+        base = base.split(sep)[0]  #  # on garde le premier segment de la base
         if ei.endswith("s") and not base.endswith("s"):
-            base += "s"
-    prefix = base[:4]
-    subdico = trie.values(prefix)  # FIXME comment choisir ?
+            base += "s"  # on remet le pluriel si nécessaire
+    prefix = base[:4]  # taille du préfixe -- HYPERPARAM A TESTER
+    subdico = trie.values(prefix)
     scores = {w: edit_distance(base, w) for w in subdico}
     return argmin(scores)
 
