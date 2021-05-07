@@ -7,7 +7,7 @@ d'une liste de mots composés.
 """
 
 
-with open("liste_annotee5.txt") as f:
+with open("../log_ei_210507_2.txt") as f:
     words = f.readlines()
 
 endings = defaultdict(int)

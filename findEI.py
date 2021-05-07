@@ -5,6 +5,8 @@ Determines if a word is an inclusive form or not.
 import re
 import os
 
+from load_dico import dico
+
 
 def isEI(word: str) -> bool:
     """Returns true if word is an EI form.
@@ -80,6 +82,9 @@ def isEI(word: str) -> bool:
         "-fête",
         "-feu",
         "-fou",
+        "-dire",
+        "-dessus",
+        "-bye",
     )
 
     # REGEX for EI forms with a separator (engagé-e-s, énervé·e)
@@ -95,7 +100,11 @@ def isEI(word: str) -> bool:
         return True
 
     # EI with separators : énervé·es, énervé-e-s
-    elif not word.lower().endswith(terminaisons) and re.fullmatch(ei_with_seps, word):
+    elif (
+        not word.lower().endswith(terminaisons)
+        and not isCompound(word)
+        and re.fullmatch(ei_with_seps, word)
+    ):
         first_part, *mid_part, last_part = re.split(r"[\-·\./\\]", word)
         if (
             # ignore proper noun
@@ -103,7 +112,7 @@ def isEI(word: str) -> bool:
             # attempt to ignore compound words
             # and len(last_part) < len(first_part)
             # checks that there's an "e" in the middle or last part
-            and ("e" in last_part or "e" in "".join(mid_part).lower())
+            and ("e" in last_part.lower() or "e" in "".join(mid_part).lower())
         ):
             return True
 
@@ -120,3 +129,32 @@ def isEI(word: str) -> bool:
 # - EI "fusionnées" (sans marque typographique) > on verra plus tard
 # utiliser un dictionnaire ? "toustes"
 # iels ?
+
+
+def isCompound(word: str) -> bool:
+    if word in dico:
+        return True
+    if "-" in word:
+        # sep = [char for char in word if not char.isalpha()][0]
+        parts = word.split("-")
+        if len(parts[-1]) > 3:
+            return all((part.lower() in dico) for part in parts)
+    return False
+
+
+# # test isCompound
+# with open("../log_ei_210507.txt") as f:
+#     tests = [l.strip() for l in f.readlines()]
+
+# nb_compounds = 0
+# compounds = set()
+# for w in tests:
+#     res = isCompound(w)
+#     if res:
+#         nb_compounds += 1
+#         compounds.add(w)
+
+# print(*compounds, sep="\n")
+# print(f"{nb_compounds=}")
+
+# FIXME > liste de préfixe à enlever avant les tests ?

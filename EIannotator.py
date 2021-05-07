@@ -8,8 +8,10 @@ import os
 sys.path.append("../codeEI")
 
 import regex as re
-from findEI import isEI
 from datetime import date
+
+
+from findEI import isEI
 
 
 # print("text 100", text[0:100])
@@ -18,7 +20,7 @@ from datetime import date
 # print("sentences 10", *sentences[:10], sep="\n\n")
 
 
-def load_file(filename):
+def load_file(filename) -> str:
     with open(filename, "r", encoding="utf-8") as data:
         text = data.read()
         clean = text.replace("\t", " ").replace("\n", " ")
@@ -26,6 +28,10 @@ def load_file(filename):
         output = clean
 
     return output
+
+
+def sent_tokenize(text: str) -> list:
+    return re.split(r"(?<=\.|\?|\!)\s", text)
 
 
 def word_tokenize(sentence: str) -> list:
@@ -45,15 +51,12 @@ def word_tokenize(sentence: str) -> list:
     ]
 
 
-def sent_tokenize(text: str) -> list:
-    return re.split(r"(?<=\.|\?|\!)\s", text)
-
-
-def labelling(sentences: list) -> list:
+def labelling(file: str) -> list:
     """
     Label words in a list of sentences (EI or not EI)
     Returns a list of annotated sentences.
     """
+    sentences = sent_tokenize(load_file(file))
     out = []
     for one_sentence in sentences:
         tempwords = word_tokenize(one_sentence)
@@ -84,6 +87,22 @@ def CoNLL_label(filepath):
     return out
 
 
+def get_ei_from_labels(labels):
+    """Takes in labels outputted by labelling()
+    and returns a list of the EI forms (for auditing).
+
+    Args:
+        labels (list): list of labels outputted by labelling()
+    """
+    ei = []
+    for i in labels:
+        if i["gold"]:
+            for j in i["gold"]:
+                ei.append(i["words"][j])
+
+    return ei
+
+
 # def label_file(filepath):
 #     name = filepath
 #     text = load_file(name)
@@ -104,21 +123,36 @@ def CoNLL_label(filepath):
 
 # if script launched as main
 if __name__ == "__main__":
-    if sys.argv[1] == "all":
-        path = "corpus/infokiosque"
+    if sys.argv[1] == "all":  # python3 EIannotator.py all
+        path = "../corpus/infokiosque"
         today = date.today().strftime("%y%m%d")
-        with open(f"infokiosque_labelled.conll", "w") as f:
-            for file in os.listdir(path):
-                print(file)
-                f.write(CoNLL_label(path + "/" + file))
+
+        # with open(f"infokiosque_labelled.conll", "w") as f:
+        #     for file in os.listdir(path):
+        #         print(file)
+        #         f.write(CoNLL_label(path + "/" + file))
+
+        nb_docs_ei = 0
+
+        for file in os.listdir(path):
+            try:
+                labels = labelling(path + "/" + file)
+                eis = get_ei_from_labels(labels)
+                if eis:
+                    nb_docs_ei += 1
+                    for ei in eis:
+                        print(ei)
+            except Exception as e:
+                pass
+
+        print(f"{nb_docs_ei} / {len(os.listdir(path))}")
+        # 7/05 10h 892 / 1387 (infokiosque only)
+        # sans les compounds 647 / 1387 !
 
     else:
         name = sys.argv[1]
 
-        text = load_file(name)
-        sentences = re.split(r"(?<=\.|\?|\!)\s", text)
-
-        labels = labelling(sentences)
+        labels = labelling(name)
 
         if len(sys.argv) > 2 and sys.argv[2] == "-v":
             print(labels)
