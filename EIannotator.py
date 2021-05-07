@@ -1,7 +1,7 @@
 """
 Annotates texts to indicate which words are EI forms.
 """
-
+#%%
 import sys
 import os
 
@@ -9,11 +9,12 @@ sys.path.append("../codeEI")
 
 import regex as re
 from datetime import date
+from string import punctuation
 
 
 from findEI import isEI
 
-
+#%%
 # print("text 100", text[0:100])
 # à propos de la regex : \b pour identifier les fins de mots dans une string (utilisable sur une pharse, il faut qu'il y ai
 # un séparateur. si on passe sur des items : pas de sep)
@@ -34,6 +35,7 @@ def sent_tokenize(text: str) -> list:
     return re.split(r"(?<=\.|\?|\!)\s", text)
 
 
+#%%
 def word_tokenize(sentence: str) -> list:
     """
     tokenize and keep ponctuation marks, but not whistespaces
@@ -44,13 +46,22 @@ def word_tokenize(sentence: str) -> list:
     Returns:
         list: tokenized sentence, with ponctuation
     """
-    return [
-        segment
-        for segment in re.split(r"([^\w\-·\.\/\\])", sentence)
-        if segment.strip()
-    ]
+    tokenized_sent = []
+
+    for word in re.split(r"([^\w\-·\.\/\\])", sentence):
+        if word.endswith(tuple(punctuation)):
+            tokenized_sent.append(word[:-1])
+            tokenized_sent.append(word[-1])
+        else:
+            tokenized_sent.append(word)
+
+    return [word for word in tokenized_sent if word.strip()]
 
 
+#  == si mot non nul
+
+
+#%%
 def labelling(file: str) -> list:
     """
     Label words in a list of sentences (EI or not EI)

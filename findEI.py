@@ -117,8 +117,10 @@ def isEI(word: str) -> bool:
         ):
             return True
 
-    # iel, iels, ielle, ielles (?)
-    elif word.lower().startswith("iel") and len(word) <= 6:
+    # iels, ielles, iel... problème : parfois pas des réf générique..; mais rare
+    elif (
+        word.lower().startswith("iel") and word.lower().endswith("s") and len(word) <= 6
+    ):
         return True
 
     return False
