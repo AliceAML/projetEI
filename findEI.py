@@ -1,13 +1,14 @@
 """
 Determines if a word is an inclusive form or not.
 """
-
+#%%
 import re
 import os
 
 from load_dico import dico
+from nltk.metrics.distance import edit_distance
 
-
+#%%
 def isEI(word: str) -> bool:
     """Returns true if word is an EI form.
 
@@ -158,3 +159,24 @@ def isCompound(word: str) -> bool:
 # print(f"{nb_compounds=}")
 
 # FIXME > liste de préfixe à enlever avant les tests ?
+
+#%%
+def dist_min(word: str) -> int:
+    """Returns the minimum distance between a word and
+    the closest word in the dictionary"""
+    base = re.sub(r"\W", "", word).lower()
+    subdico = dico.values(base[: len(base) // 2])
+    scores = {w: edit_distance(base, w) for w in subdico}
+    try:
+        return min(scores.items(), key=lambda x: x[1])
+    except:
+        return (None, float("inf"))
+
+
+# #%% tests dist_min
+# with open("../log_uni.txt") as f:
+#     tests = {l.strip() for l in f.readlines()}
+# #%%
+# dist_tests = []
+# for w in tests:
+#     dist_tests.append((w, dist_min(w)))

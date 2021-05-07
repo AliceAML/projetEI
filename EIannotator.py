@@ -124,28 +124,33 @@ def get_ei_from_labels(labels):
 # if script launched as main
 if __name__ == "__main__":
     if sys.argv[1] == "all":  # python3 EIannotator.py all
-        path = "../corpus/infokiosque"
+        path = "../corpus/corpus_ei"
         today = date.today().strftime("%y%m%d")
+        new_path = "../corpus/corpus_ei"
 
-        # with open(f"infokiosque_labelled.conll", "w") as f:
-        #     for file in os.listdir(path):
+        with open(f"corpus_ei_labelled.conll", "w") as f:
+            for i, file in enumerate(os.listdir(path)):
+                print(f"{i} / {len(os.listdir(path))}  - {file} ")
+                f.write(CoNLL_label(path + "/" + file))
+
+        # nb_docs_ei = 0
+
+        # for file in os.listdir(path):
+        #     if file not in os.listdir(new_path):
         #         print(file)
-        #         f.write(CoNLL_label(path + "/" + file))
+        #         try:
+        #             labels = labelling(path + "/" + file)
+        #             eis = get_ei_from_labels(labels)
+        #             if eis:
+        #                 print("---", file)
+        #                 os.system(f"cp {path}/{file} {new_path}/{file}")
+        #                 nb_docs_ei += 1
+        #                 for ei in eis:
+        #                     print(ei)
+        #         except Exception as e:
+        #             print(e)
 
-        nb_docs_ei = 0
-
-        for file in os.listdir(path):
-            try:
-                labels = labelling(path + "/" + file)
-                eis = get_ei_from_labels(labels)
-                if eis:
-                    nb_docs_ei += 1
-                    for ei in eis:
-                        print(ei)
-            except Exception as e:
-                pass
-
-        print(f"{nb_docs_ei} / {len(os.listdir(path))}")
+        # print(f"{nb_docs_ei} / {len(os.listdir(path))}")
         # 7/05 10h 892 / 1387 (infokiosque only)
         # sans les compounds 647 / 1387 !
 
