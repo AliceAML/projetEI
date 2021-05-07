@@ -122,7 +122,7 @@ def isEI(word: str) -> bool:
         word.lower().startswith("iel") and word.lower().endswith("s") and len(word) <= 6
     ):
         return True
-    elif word.lower() == "toustes":
+    elif word.lower() in ["toustes", "illes", "ille"]:
         return True
     return False
 
