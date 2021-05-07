@@ -110,7 +110,7 @@ def isEI(word: str) -> bool:
     # word boundary
     ei_with_seps = r"\b([A-Za-zÀ-ÖØ-öø-ÿ]+[\-·\./\\][A-Za-zÀ-ÖØ-öø-ÿ]{0,6})+\b"
 
-    ei_with_maj = r"\b[A-ZÀ-Ö]*[a-zø-ÿ]+E+[A-Za-zÀ-ÖØ-öø-ÿ]+\b"
+    ei_with_maj = r"\b[A-ZÀ-Ö]*[a-zø-ÿ]+E+[A-Za-zÀ-ÖØ-öø-ÿ]*\b"
 
     # EI capital letters : enervéEs
     if re.fullmatch(ei_with_maj, word):
