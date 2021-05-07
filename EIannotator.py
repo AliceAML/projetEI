@@ -93,7 +93,7 @@ def CoNLL_label(filepath):
         out += f"# text = {sent}\n"
         words = word_tokenize(sent)
         for j, word in enumerate(words):
-            out += f"{j}\t{word}\t{isEI(word)}\n"
+            out += f"{j:10}\t{word}\t{isEI(word)}\n"
         out += "\n"
     return out
 

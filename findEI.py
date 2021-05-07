@@ -88,6 +88,22 @@ def isEI(word: str) -> bool:
         "-bye",
     )
 
+    pronoms_EI = [
+        "toustes",
+        "illes",
+        "ille",
+        "celleux",
+        "cellui",
+        "ellui",
+        "elleux",
+        "iels",
+        "ielles",
+        "ielle",
+        "iel",
+        "gentes",
+        "lae",
+    ]
+
     # REGEX for EI forms with a separator (engagé-e-s, énervé·e)
     # word boundary +
     # (any letters separated by a separator) * possibly several times
@@ -118,11 +134,7 @@ def isEI(word: str) -> bool:
             return True
 
     # iels, ielles, iel... problème : parfois pas des réf générique..; mais rare
-    elif (
-        word.lower().startswith("iel") and word.lower().endswith("s") and len(word) <= 6
-    ):
-        return True
-    elif word.lower() in ["toustes", "illes", "ille"]:
+    elif word.lower() in pronoms_EI:
         return True
     return False
 
