@@ -1,3 +1,5 @@
+# sent_id = 5
+# text_ei =  C ’ est d ’ ailleurs appâtés par ces clichés que nous sommes venus sur la ZAD y voir de plus près .
 id	form	lemma	upostag	xpostag	feats	head	deprel	deps	misc
 0	C	c	NOUN	NOUN	_	4	nsubj:pass	_	_
 1	’	’	PROPN	PROPN	_	1	flat:name	_	_
