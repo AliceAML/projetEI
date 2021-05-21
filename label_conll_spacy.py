@@ -1,19 +1,14 @@
-from cgi import test
 import spacy
 from spacy_conll import ConllFormatter
-from spacy.tokenizer import Tokenizer
-import re
 import pandas as pd
 
 pd.options.display.max_columns = 10
 
 nlp = spacy.load("fr_core_news_sm")
-# tokenizer = Tokenizer(nlp.vocab, token_match=re.compile("\S+"))
-# nlp.add_pipe(tokenizer, first=True)
+
 # conversion map pour garder colonne MISC vide pour les EI
 conllformater = ConllFormatter(nlp, conversion_maps={"misc": {"SpaceAfter=No": "_"}})
 nlp.add_pipe(conllformater)
-print(nlp.pipeline)
 
 test_corpus = """# sent_id = 5
 # text = C’est d’ailleurs appâté·e·s par ces clichés que nous sommes venu·e·s sur la ZAD y voir de plus près.
@@ -40,7 +35,7 @@ test_corpus = """# sent_id = 5
 20	plus	False	plus
 21	près	False	près
 22	.	False	.
-# text_ei =  C’est d’ailleurs appâtés par ces clichés que nous sommes venus sur la ZAD y voir de plus près.
+# text_ei =  C ’ est d ’ ailleurs appâtés par ces clichés que nous sommes venus sur la ZAD y voir de plus près .
 """
 
 # with open("corpus_ei_final.conll") as f, open("corpus_sans_ei_labelled.conll") as g:
@@ -65,7 +60,6 @@ for line in lines:
 doc = nlp(text)
 conll = doc._.conll_pd
 
-# https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.mask.html
 eis = []
 for i in range(len(conll)):
     if tokens[str(i)]["is_ei"]:
