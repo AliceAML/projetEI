@@ -11,7 +11,7 @@ mots_m = []
 
 for cat in ("nouns", "pronouns", "adjectives", "ppas"):
     dico = pd.read_csv(
-        f"../French-Dictionary-master/dictionary/{cat}.txt",
+        f"French-Dictionary-master/dictionary/{cat}.txt",
         sep=";",
         names=("mot", "genre", "nb"),
     )
@@ -28,7 +28,7 @@ for mot in mots_m:
 
 #%% import exemples
 
-eis = [l.strip() for l in open("../liste_ei_ex").readlines()]
+eis = [l.strip() for l in open("liste_ei_ex").readlines()]
 
 #%% recherche mot + similaire
 
@@ -83,7 +83,32 @@ def desinclufy_conll(conll, out):
                 f.write("\n")
 
 
-desinclufy_conll("corpus_ei_labelled.conll", "corpus_ei_deEI.conll")
+# desinclufy_conll("corpus_ei_labelled.conll", "corpus_ei_deEI.conll")
 
 
 # FIXME : COMMENT FAIRE POUR GARDER LE MEME FORMAT ? (maj, min...)
+
+
+def deinclusify_text(conll, out):
+    """Ajoute une ligne de texte désinclusifié pour chaque phrase
+
+    Args:
+        conll (filepath): Fichier déjà annoté, et avec les formes en EI
+    """
+    with open(conll, "r") as f, open(out, "w") as g:
+        lines = [l.strip() for l in f.readlines()]
+        sent = []
+        for line in lines:
+            if line.startswith("#"):
+                sent = []
+                g.write(line + "\n")
+            elif line.startswith(tuple("0123456789")):
+                g.write(line + "\n")
+                num, word, is_EI, lemma = line.split("\t")
+                sent.append(lemma)
+            else:
+                g.write(f"# text_ei =  {' '.join(sent)}\n")
+                g.write(line + "\n")
+
+
+# deinclusify_text("corpus_ei_deEI.conll", "corpus_ei_final.conll")
