@@ -1,2 +1,4 @@
 infokiosque_labelled.conll
-codeEI/.venv/
+.venv/
+corpus_ei_labelled.conll
+corpus_ei_deEI.conll
