@@ -66,6 +66,7 @@ def closest_match(ei):
         return base
 
 
+#%%
 def desinclufy_conll(conll, out):
     with open(conll, "r") as f:
         lines = f.readlines()
@@ -99,6 +100,8 @@ def deinclusify_text(conll, out):
         lines = [l.strip() for l in f.readlines()]
         sent = []
         for line in lines:
+            if line.startswith("# doc"):
+                print(line)
             if line.startswith("#"):
                 sent = []
                 g.write(line + "\n")
@@ -107,8 +110,10 @@ def deinclusify_text(conll, out):
                 num, word, is_EI, lemma = line.split("\t")
                 sent.append(lemma)
             else:
-                g.write(f"# text_ei =  {' '.join(sent)}\n")
+                g.write(f"# text_no_ei =  {' '.join(sent)}\n")
                 g.write(line + "\n")
 
 
-# deinclusify_text("corpus_ei_deEI.conll", "corpus_ei_final.conll")
+deinclusify_text(
+    "../corpus_ei_final_no_desinclusify.conll", "../corpus_no_ei_no_spacy.conll"
+)
