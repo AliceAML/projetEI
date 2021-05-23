@@ -1,11 +1,11 @@
-    """Extracts the features from non_EI sentences,
-    and outputs them to a conll-U file,
-    with the ei labels in the misc column.
+"""Extracts the features from non_EI sentences,
+and outputs them to a conll-U file,
+with the ei labels in the misc column.
 
-    Returns:
-        conll file: conll-U file,
-    with the ei labels in the misc column.
-    """
+Returns:
+    conll file: conll-U file,
+with the ei labels in the misc column.
+"""
 
 import spacy
 from spacy_conll import ConllFormatter
@@ -33,12 +33,10 @@ conllformater = ConllFormatter(nlp, conversion_maps={"misc": {"SpaceAfter=No": "
 nlp.add_pipe(conllformater)
 
 
-with open("../corpus_no_ei_no_spacy.conll") as f, open(
-    "../corpus_sans_ei_labelled.conll", "w"
-) as g:
+with open("2.corpus_no_ei.conll") as f, open("3.1.corpus_spacied.conll", "w") as g:
     content = f.read()
     sentences = content.split("\n\n")
-    for sent in sentences:
+    for sent in sentences[:-1]:
         lines = sent.splitlines()
         eis = []
         for line in lines:
@@ -56,7 +54,6 @@ with open("../corpus_no_ei_no_spacy.conll") as f, open(
                     eis.append(f"ei={og}")
                 else:
                     eis.append("_")
-                    
         doc = nlp(text)
         conll = doc._.conll_pd
 
@@ -67,6 +64,6 @@ with open("../corpus_no_ei_no_spacy.conll") as f, open(
         # print(conll.to_string(index=None), end="\n\n")
 
         # version to add to the corpus (one tab between each value)
-        conll_str = conll.to_csv(sep="\t", index=None)
+        conll_str = conll.to_csv(sep="\t", index=None, header=False)
         g.write(conll_str)
         g.write("\n\n")

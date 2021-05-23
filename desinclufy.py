@@ -114,6 +114,4 @@ def deinclusify_text(conll, out):
                 g.write(line + "\n")
 
 
-deinclusify_text(
-    "../corpus_ei_final_no_desinclusify.conll", "../corpus_no_ei_no_spacy.conll"
-)
+deinclusify_text("1_corpus_annote_ei.conll", "2.corpus_no_ei.conll")
