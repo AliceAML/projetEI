@@ -2,6 +2,8 @@
 from conllu import parse_incr, parse
 from sklearn.feature_extraction.text import CountVectorizer
 
+WINDOW_SIZE = 2
+
 # http://www.davidsbatista.net//blog/2018/02/28/TfidfVectorizer/
 # dummy function to use pretokenized data
 def dummy_fun(doc):
@@ -53,11 +55,9 @@ test = """# sent_id = 344
 """
 test_data = parse(test)
 
-#%% SEPARATION TRAIN/TEST
-
 # modifier pour que les fonctions prennent plusieurs "phrases" en même temps ?
 
-"""Takes in a all the examples for 1 sentence 
+"""Takes in a all the examples 
 and returns their xpos vectors"""
 
 
@@ -73,7 +73,7 @@ def xpos_vectorize(tokenlists):
     return xpos_vectorizer.transform(xpos)
 
 
-"""Takes in a all the examples for 1 sentence 
+"""Takes in a all the examples 
 and returns their form vectors"""
 
 
@@ -84,7 +84,15 @@ def form_vectorize(tokenlists):
     return form_vectorizer.transform(form_lists)
 
 
+# forme vecteur
+# WORD form _ WORD xpos _ CONTEXT forms _ CONTEXT xpos _ LABEL
+
+
 """Takes in a all the examples for 1 sentence 
 and returns their complete vectors with form, pos and label"""
-# TODO : comment trouver le mot example pour chaque contexte ? fournir une liste du type [(w,cont,label), (w,cont,label)]...
+# TODO : comment trouver le mot example pour chaque contexte ?
+# fournir une liste du type [(w,cont,label), (w,cont,label)]...
 # renvoyer [vecteur1, vecteur2]
+
+
+#%% SEPARATION TRAIN/DEV/TEST TODO
