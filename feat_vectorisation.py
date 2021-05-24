@@ -1,8 +1,19 @@
 #%%
+from bleach import VERSION
 from conllu import parse_incr, parse
 from sklearn.feature_extraction.text import CountVectorizer
+import pickle
+from scipy import sparse
+import sys
 
+FILE = "3.1.corpus_spacied.conll"
 WINDOW_SIZE = 2
+f1 = lambda x: {"form": f"d{x}", "xpos": None}
+f2 = lambda x: {"form": f"f{x}", "xpos": None}
+FAKE_WORDS = [f(i) for i in range(WINDOW_SIZE) for f in (f1, f2)]
+
+VERSION_NB = 1
+
 
 # http://www.davidsbatista.net//blog/2018/02/28/TfidfVectorizer/
 # dummy function to use pretokenized data
@@ -10,54 +21,29 @@ def dummy_fun(doc):
     return doc
 
 
-form_vectorizer = CountVectorizer(
-    analyzer="word", tokenizer=dummy_fun, preprocessor=dummy_fun, token_pattern=None
-)
-
-xpos_vectorizer = CountVectorizer(
-    analyzer="word", tokenizer=dummy_fun, preprocessor=dummy_fun, token_pattern=None
-)
-
 #%% CREATION OF FORM VECTORIZER AND XPOS VECTORIZER
-with open("../3.1.corpus_spacied.conll", "r") as data_file:
 
-    def form_generator():
+
+def form_generator():
+
+    # iniitalise with fake words for beginning and end (depending on WINDOW_SIZE)
+    yield from FAKE_WORDS
+    with open(FILE, "r") as data_file:
         for sent in parse_incr(data_file):
             yield [tok["form"] for tok in sent]
 
-    form_vectorizer.fit(form_generator())
-    print(form_vectorizer.vocabulary_)
 
-# re-opening the file to rset the parse_incr generator
-with open("3.1.corpus_spacied.conll", "r") as data_file:
-
-    def xpos_generator():
+def xpos_generator():
+    with open(FILE, "r") as data_file:
         for sent in parse_incr(data_file):
             for tok in sent:
                 yield (tok["xpos"].split("|"))
 
-    xpos_vectorizer.fit(xpos_generator())
-    print(xpos_vectorizer.vocabulary_)
-
 
 #%% GENERATING THE EXAMPLES
-test = """# sent_id = 344
-# text_no_ei =  J ’ étais très coupée de mes amis .
-0	J	j	NOUN	NOUN	_	2	nummod	_	_
-1	’	’	PUNCT	PUNCT	_	3	nsubj	_	_
-2	étais	étai	ADJ	ADJ__Gender=Masc	_	0	ROOT	_	_
-3	très	très	ADV	ADV	_	5	advmod	_	_
-4	coupée	couper	VERB	VERB__Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part	_	3	obj	_	_
-5	de	de	ADP	ADP	_	8	case	_	_
-6	mes	mon	DET	DET__Number=Plur|Poss=Yes	_	8	det	_	_
-7	amis	ami	NOUN	NOUN__Gender=Masc|Number=Plur	_	5	nmod	_	ei=ami-e-s
-8	.	.	PUNCT	PUNCT	_	3	punct	_	_
-"""
-test_data = parse(test)
 
-# modifier pour que les fonctions prennent plusieurs "phrases" en même temps ?
 
-"""Takes in a all the examples 
+"""Takes in a list of words 
 and returns their xpos vectors"""
 
 
@@ -89,10 +75,117 @@ def form_vectorize(tokenlists):
 
 
 """Takes in a all the examples for 1 sentence 
-and returns their complete vectors with form, pos and label"""
-# TODO : comment trouver le mot example pour chaque contexte ?
-# fournir une liste du type [(w,cont,label), (w,cont,label)]...
-# renvoyer [vecteur1, vecteur2]
+and returns the full matrix with form, pos and label"""
+# input : [[w1, w2, w3,...], [cont1, cont2, ...], [label1, label2,...]]
+# renvoyer [vecteur1, vecteur2] (matrice de vecteurs)
+def make_matrix(examples, labels=True):
+    words, contexts, *gold_labels = examples
+    gold = sparse.csr_matrix(gold_labels)
+    word_form = form_vectorize(
+        words
+    )  # FIXME attention : les contextes et les mots ont des formes différentes !
+    word_xpos = xpos_vectorize(words)
+    context_forms = form_vectorize(contexts)
+    context_xpos = xpos_vectorize(contexts)
+    return sparse.hstack(word_form, word_xpos, context_forms, context_xpos, gold)
 
 
-#%% SEPARATION TRAIN/DEV/TEST TODO
+"""Make a list of examples from a CONLL file
+[[w1, w2, w3,...], [cont1, cont2, ...], [label1, label2,...]]"""
+
+
+def make_examples(file, labels=True):
+    with open(file) as data_file:
+        words = []
+        contexts = []
+        gold_labels = []
+        for sent in parse_incr(data_file):
+            words += [
+                [tok] for tok in sent
+            ]  # adding all the tokens to the example list
+            # adding fake words to the sentence
+            with_fakes = FAKE_WORDS[0::2] + sent + FAKE_WORDS[1::2]
+
+            # embedded list comprehension that generates a list of context tokens for each word of the sentence
+            contexts += [
+                [
+                    with_fakes[j]
+                    for j in range(i - WINDOW_SIZE, i + WINDOW_SIZE + 1)
+                    if j != i  # without the word itself
+                ]
+                for i in range(WINDOW_SIZE, len(with_fakes) - WINDOW_SIZE)
+            ]
+
+            def is_ei(misc):
+                if misc:
+                    return 1
+                else:
+                    return 0
+
+            gold_labels += [is_ei(x["misc"]) for x in sent]
+
+    return [words, contexts, gold_labels]
+
+
+#%% MAIN
+form_vectorizer = CountVectorizer(
+    analyzer="word",
+    tokenizer=dummy_fun,
+    preprocessor=dummy_fun,
+    token_pattern=None,
+)
+
+xpos_vectorizer = CountVectorizer(
+    analyzer="word",
+    tokenizer=dummy_fun,
+    preprocessor=dummy_fun,
+    token_pattern=None,
+)
+
+try:
+    print("UNPICKLING VECTORIZERS")
+    with open("vectorizers_V1", "rb") as f:
+        form_vectorizer = pickle.load(f)
+        xpos_vectorizer = pickle.load(f)
+except Exception as e:
+    print(e)
+    file_vectorizers = f"vectorizers_V{VERSION_NB}"
+
+    print("FIT FORMS VECTORIZER")
+    form_vectorizer.fit(form_generator())
+    print(form_vectorizer.vocabulary_)
+
+    print("FIT XPOS VECTORIZER")
+    xpos_vectorizer.fit(xpos_generator())
+    print(xpos_vectorizer.vocabulary_)
+
+try:
+    print("UNPICKLING EXAMPLES")
+    with open("examples_V1", "rb") as f:
+        examples = pickle.load(f)
+except Exception as e:
+    print(e)
+    print("GENERATING EXAMPLES")
+    examples = make_examples(FILE, labels=True)
+
+with open(file_vectorizers, "wb") as f:
+    print(f"PICKLING FORMS VECTORIZER to {file_vectorizers}")
+    pickle.dump(form_vectorizer, f)
+
+    print(f"PICKLING XPOS VECTORIZER to {file_vectorizers}")
+    pickle.dump(xpos_vectorizer, f)
+
+file_examples = f"examples_V{VERSION_NB}"
+print(f"PICKLING EXAMPLES to {file_examples}")
+with open(file_examples, "wb") as f:
+    pickle.dump(examples, f)
+
+print("CONVERTING EXAMPLES TO A MATRIX")
+feat_matrix = make_matrix(examples, labels=True)
+
+file_matrix = f"features_V{VERSION_NB}"
+print(f"SAVING MATRIX to {file_matrix}")
+sparse.save_npz(file_matrix, feat_matrix, compressed=True)
+
+
+#%% SEPARATION TRAIN/DEV/TEST TODO --> à faire dans MODELE SVM ?
