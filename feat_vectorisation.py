@@ -53,8 +53,9 @@ def xpos_vectorize(tokenlists):
     for tokenlist in tokenlists:
         xpos_list = []
         for tok in tokenlist:
-            for feat in tok["xpos"].split("|"):
-                xpos_list.append(feat)
+            if tok["xpos"]:
+                for feat in tok["xpos"].split("|"):
+                    xpos_list.append(feat)
         xpos.append(xpos_list)
     return xpos_vectorizer.transform(xpos)
 
@@ -79,15 +80,23 @@ and returns the full matrix with form, pos and label"""
 # input : [[w1, w2, w3,...], [cont1, cont2, ...], [label1, label2,...]]
 # renvoyer [vecteur1, vecteur2] (matrice de vecteurs)
 def make_matrix(examples, labels=True):
-    words, contexts, *gold_labels = examples
-    gold = sparse.csr_matrix(gold_labels)
-    word_form = form_vectorize(
-        words
-    )  # FIXME attention : les contextes et les mots ont des formes différentes !
+    if labels:
+        words, contexts, gold_labels = examples
+        gold = sparse.csr_matrix(gold_labels)
+    else:
+        words, contexts = examples
+
+    word_form = form_vectorize(words)
     word_xpos = xpos_vectorize(words)
     context_forms = form_vectorize(contexts)
     context_xpos = xpos_vectorize(contexts)
-    return sparse.hstack(word_form, word_xpos, context_forms, context_xpos, gold)
+
+    if labels:
+        return sparse.hstack(
+            [word_form, word_xpos, context_forms, context_xpos, gold.transpose()]
+        )
+    else:
+        return sparse.hstack([word_form, word_xpos, context_forms, context_xpos])
 
 
 """Make a list of examples from a CONLL file
@@ -123,7 +132,6 @@ def make_examples(file, labels=True):
                     return 0
 
             gold_labels += [is_ei(x["misc"]) for x in sent]
-
     return [words, contexts, gold_labels]
 
 
@@ -149,7 +157,6 @@ try:
         xpos_vectorizer = pickle.load(f)
 except Exception as e:
     print(e)
-    file_vectorizers = f"vectorizers_V{VERSION_NB}"
 
     print("FIT FORMS VECTORIZER")
     form_vectorizer.fit(form_generator())
@@ -168,6 +175,7 @@ except Exception as e:
     print("GENERATING EXAMPLES")
     examples = make_examples(FILE, labels=True)
 
+file_vectorizers = f"vectorizers_V{VERSION_NB}"
 with open(file_vectorizers, "wb") as f:
     print(f"PICKLING FORMS VECTORIZER to {file_vectorizers}")
     pickle.dump(form_vectorizer, f)
@@ -179,6 +187,7 @@ file_examples = f"examples_V{VERSION_NB}"
 print(f"PICKLING EXAMPLES to {file_examples}")
 with open(file_examples, "wb") as f:
     pickle.dump(examples, f)
+
 
 print("CONVERTING EXAMPLES TO A MATRIX")
 feat_matrix = make_matrix(examples, labels=True)
