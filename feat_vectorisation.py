@@ -14,7 +14,7 @@ f1 = lambda x: {"form": f"d{x}", "xpos": None}
 f2 = lambda x: {"form": f"f{x}", "xpos": None}
 FAKE_WORDS = [f(i) for i in range(WINDOW_SIZE) for f in (f1, f2)]
 
-VERSION_NB = 2
+VERSION_NB = 4
 
 
 # http://www.davidsbatista.net//blog/2018/02/28/TfidfVectorizer/
@@ -191,7 +191,7 @@ except Exception as e:
 
 try:
     print("UNPICKLING EXAMPLES")
-    with open("examples_V2", "rb") as f:
+    with open("examples_V1", "rb") as f:
         examples = pickle.load(f)
 except Exception as e:
     print(e)
