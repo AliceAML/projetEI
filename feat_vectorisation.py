@@ -1,10 +1,12 @@
 #%%
 from bleach import VERSION
 from conllu import parse_incr, parse
+import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 import pickle
 from scipy import sparse
 import sys
+import random
 
 FILE = "3.1.corpus_spacied.conll"
 WINDOW_SIZE = 2
@@ -12,7 +14,7 @@ f1 = lambda x: {"form": f"d{x}", "xpos": None}
 f2 = lambda x: {"form": f"f{x}", "xpos": None}
 FAKE_WORDS = [f(i) for i in range(WINDOW_SIZE) for f in (f1, f2)]
 
-VERSION_NB = 1
+VERSION_NB = 2
 
 
 # http://www.davidsbatista.net//blog/2018/02/28/TfidfVectorizer/
@@ -135,6 +137,37 @@ def make_examples(file, labels=True):
     return [words, contexts, gold_labels]
 
 
+def select_examples(examples, ratio_neg_to_pos: int):
+    """Randomly choose negative examples in the list.
+
+    Args:
+        examples (list): list of lists of words, contexts and labels
+        ratio_neg_to_pos (int): number of negative examples for each positive one
+
+    Returns:
+        [type]: [description]
+    """
+    nbr_neg = sum(examples[2]) * ratio_neg_to_pos
+    df = pd.concat(
+        (
+            pd.Series(examples[0], name="ex"),
+            pd.Series(examples[1], name="contexts"),
+            pd.Series(examples[2], name="labels"),
+        ),
+        axis=1,
+    )
+    print(df.info)
+    sample_neg = df[df["labels"] == 0].sample(nbr_neg)
+    all_pos = df[df["labels"] == 1]
+    reduced_df = pd.concat((sample_neg, all_pos), axis=0).sort_index()
+    print("Reduced_examples shape", reduced_df.shape)
+    return [
+        list(reduced_df["ex"]),
+        list(reduced_df["contexts"]),
+        list(reduced_df["labels"]),
+    ]
+
+
 #%% MAIN
 form_vectorizer = CountVectorizer(
     analyzer="word",
@@ -183,11 +216,16 @@ with open(file_vectorizers, "wb") as f:
     print(f"PICKLING XPOS VECTORIZER to {file_vectorizers}")
     pickle.dump(xpos_vectorizer, f)
 
+if len(sys.argv) > 1:
+    ratio_neg_pos = int(sys.argv[1])
+    print(f"SELECTING NEGATIVE EXAMPLES - {ratio_neg_pos}*positive ex")
+    examples = select_examples(examples, ratio_neg_pos)
+    print(f"{len(examples[0])} examples selected.")
+
 file_examples = f"examples_V{VERSION_NB}"
 print(f"PICKLING EXAMPLES to {file_examples}")
 with open(file_examples, "wb") as f:
     pickle.dump(examples, f)
-
 
 print("CONVERTING EXAMPLES TO A MATRIX")
 feat_matrix = make_matrix(examples, labels=True)
