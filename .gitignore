@@ -1,3 +1,4 @@
 infokiosque_labelled.conll
 .venv/
 corpus_sans_ei_labelled.conll
+__pycache__/
