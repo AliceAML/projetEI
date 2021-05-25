@@ -1,7 +1,9 @@
-"""Train models, evaluate, predict."""
+"""Main programme for "écriture inclusive" project.
+Training, evaluation, prediction.
+Alice HAMMEL & Marjolaine RAY"""
 
-from ast import arg
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
@@ -14,25 +16,14 @@ import pickle
 from scipy import sparse
 from sklearn.preprocessing import StandardScaler
 import argparse
+import conllu
+
+from tokenization import word_tokenize
+from extract_features_spacy import nlp
+from feat_vectorisation import dummy_fun, make_examples_parsed_conll_sent, make_matrix
+
 
 WINDOW_SIZE = 2
-
-# import example list
-with open("examples_V2", "rb") as f:
-    EXAMPLES = pickle.load(f)
-
-print(f"Loaded list of {len(EXAMPLES[0])} examples")
-
-Y = EXAMPLES[2]
-
-with open("features_V2.npz", "rb") as f:
-    X = sparse.load_npz(f)
-print(f"Loaded features with shape {X.shape}")
-
-
-# divide test train
-print("TRAIN-TEST SPLIT (80\%-20\%)")
-X_TRAIN, X_TEST, Y_TRAIN, Y_TEST = train_test_split(X, Y, test_size=0.2, random_state=8)
 
 # print("STANDARDIZE FEATURES")
 # scaler = StandardScaler(with_mean=False)
@@ -136,15 +127,25 @@ def print_example(i):
 
 def predict_sentence(sentence: str):
     # tokenize
+    tokens = word_tokenize(sentence)
+    # get spacy tags + connlize
+    doc = nlp(" ".join(tokens))
+    conll = doc._.conll_pd.to_csv(sep="\t", index=None, header=False)
     # make examples
+    dico_conll = conllu.parse(conll)
+    examples = make_examples_parsed_conll_sent(dico_conll[0])
     # vectorize
-    # predict
-    pass
+    feats = make_matrix(examples)
+    # # predict
+    y_pred = model.predict(feats)
+    return zip(tokens, y_pred)
 
 
 def process_sentence(sentence: str):
     # predict
+    pred = predict_sentence(sentence)
     # transform
+    # TODO
     pass
 
 
@@ -158,8 +159,12 @@ parser.add_argument(
     help="load model from a file. By default the model used is the one with the best results.",
 )
 parser.add_argument(
-    "--eval", type=str, help="evaluate the model", choices=["test", "train"]
+    "--eval",
+    type=str,
+    help="display evaluation metrics for current model",
+    choices=["test", "train"],
 )
+# parser.add_argument("--verbose", type=bool)
 # parser.add_argument(
 #     "--model", type=str, choices=["SVM", "RandomForest"], help="choose model"
 # )
@@ -176,8 +181,31 @@ if args.load:
 else:
     model = load_model("RandomForestClassifier_V1")
 
-
 if args.eval == "test":
     eval(model, X_TEST, Y_TEST)
 elif args.eval == "train":
-    eval(model, X_TEST, Y_TEST)
+    eval(model, X_TRAIN, Y_TRAIN)
+
+if args.convert:
+    prediction = predict_sentence(args.convert)
+    print(args.convert)
+    print(*list(prediction))
+else:
+    # A METTRE EN OPTIONNEL QUAND DEV FINI TODO
+    # import example list
+    with open("examples_V2", "rb") as f:
+        EXAMPLES = pickle.load(f)
+
+    print(f"Loaded list of {len(EXAMPLES[0])} examples")
+
+    Y = EXAMPLES[2]
+
+    with open("features_V2.npz", "rb") as f:
+        X = sparse.load_npz(f)
+    print(f"Loaded features with shape {X.shape}")
+
+    # divide test train
+    print("TRAIN-TEST SPLIT (80\%-20\%)")
+    X_TRAIN, X_TEST, Y_TRAIN, Y_TEST = train_test_split(
+        X, Y, test_size=0.2, random_state=8
+    )

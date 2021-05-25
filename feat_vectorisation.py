@@ -1,12 +1,10 @@
 #%%
-from bleach import VERSION
 from conllu import parse_incr, parse
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 import pickle
 from scipy import sparse
 import sys
-import random
 
 FILE = "3.1.corpus_spacied.conll"
 WINDOW_SIZE = 2
@@ -95,27 +93,38 @@ def make_matrix(examples):
 [[w1, w2, w3,...], [cont1, cont2, ...], [label1, label2,...]]"""
 
 
-def make_examples(file, labels=True):
+def make_examples_parsed_conll_sent(sent):
+    """Generate examples for a parsed conll sentence (dictionary)"""
+    words = [[tok] for tok in sent]  # adding all the tokens to the example list
+    # adding fake words to the sentence
+    with_fakes = FAKE_WORDS[0::2] + sent + FAKE_WORDS[1::2]
+
+    # embedded list comprehension that generates a list of context tokens for each word of the sentence
+    contexts = [
+        [
+            with_fakes[j]
+            for j in range(i - WINDOW_SIZE, i + WINDOW_SIZE + 1)
+            if j != i  # without the word itself
+        ]
+        for i in range(WINDOW_SIZE, len(with_fakes) - WINDOW_SIZE)
+    ]
+
+    sentence = [" ".join(tok["form"] for tok in sent)] * len(words)
+
+    return [words, contexts, sentence]
+
+
+def make_examples_file(file, labels=True):
     with open(file) as data_file:
         words = []
         contexts = []
+        sentences = []
         gold_labels = []
         for sent in parse_incr(data_file):
-            words += [
-                [tok] for tok in sent
-            ]  # adding all the tokens to the example list
-            # adding fake words to the sentence
-            with_fakes = FAKE_WORDS[0::2] + sent + FAKE_WORDS[1::2]
-
-            # embedded list comprehension that generates a list of context tokens for each word of the sentence
-            contexts += [
-                [
-                    with_fakes[j]
-                    for j in range(i - WINDOW_SIZE, i + WINDOW_SIZE + 1)
-                    if j != i  # without the word itself
-                ]
-                for i in range(WINDOW_SIZE, len(with_fakes) - WINDOW_SIZE)
-            ]
+            w, c, s = make_examples_parsed_conll_sent(sent)
+            words += w
+            contexts += c
+            sentences += s
 
             def is_ei(misc):
                 if misc:
@@ -124,7 +133,7 @@ def make_examples(file, labels=True):
                     return 0
 
             gold_labels += [is_ei(x["misc"]) for x in sent]
-    return [words, contexts, gold_labels]
+    return [words, contexts, sentences, gold_labels]
 
 
 def select_examples(examples, ratio_neg_to_pos: int):
@@ -175,10 +184,11 @@ xpos_vectorizer = CountVectorizer(
 
 try:
     print("UNPICKLING VECTORIZERS")
-    with open("vectorizers_V2", "rb") as f:
+    with open("vectorizers_V4", "rb") as f:
         form_vectorizer = pickle.load(f)
         xpos_vectorizer = pickle.load(f)
 except Exception as e:
+
     print(e)
 
     print("FIT FORMS VECTORIZER")
@@ -189,40 +199,41 @@ except Exception as e:
     xpos_vectorizer.fit(xpos_generator())
     print(xpos_vectorizer.vocabulary_)
 
-try:
-    print("UNPICKLING EXAMPLES")
-    with open("examples_V1", "rb") as f:
-        examples = pickle.load(f)
-except Exception as e:
-    print(e)
-    print("GENERATING EXAMPLES")
-    examples = make_examples(FILE, labels=True)
+    file_vectorizers = f"vectorizers_V{VERSION_NB}"
+    with open(file_vectorizers, "wb") as f:
+        print(f"PICKLING FORMS VECTORIZER to {file_vectorizers}")
+        pickle.dump(form_vectorizer, f)
 
-file_vectorizers = f"vectorizers_V{VERSION_NB}"
-with open(file_vectorizers, "wb") as f:
-    print(f"PICKLING FORMS VECTORIZER to {file_vectorizers}")
-    pickle.dump(form_vectorizer, f)
+        print(f"PICKLING XPOS VECTORIZER to {file_vectorizers}")
+        pickle.dump(xpos_vectorizer, f)
 
-    print(f"PICKLING XPOS VECTORIZER to {file_vectorizers}")
-    pickle.dump(xpos_vectorizer, f)
+if __name__ == "__main__":
+    try:
+        print("UNPICKLING EXAMPLES")
+        with open("examples_V1", "rb") as f:
+            examples = pickle.load(f)
+    except Exception as e:
+        print(e)
+        print("GENERATING EXAMPLES")
+        examples = make_examples_file(FILE, labels=True)
 
-if len(sys.argv) > 1:
-    ratio_neg_pos = int(sys.argv[1])
-    print(f"SELECTING NEGATIVE EXAMPLES - {ratio_neg_pos}*positive ex")
-    examples = select_examples(examples, ratio_neg_pos)
-    print(f"{len(examples[0])} examples selected.")
+    if len(sys.argv) > 1:
+        ratio_neg_pos = int(sys.argv[1])
+        print(f"SELECTING NEGATIVE EXAMPLES - {ratio_neg_pos}*positive ex")
+        examples = select_examples(examples, ratio_neg_pos)
+        print(f"{len(examples[0])} examples selected.")
 
-file_examples = f"examples_V{VERSION_NB}"
-print(f"PICKLING EXAMPLES to {file_examples}")
-with open(file_examples, "wb") as f:
-    pickle.dump(examples, f)
+    file_examples = f"examples_V{VERSION_NB}"
+    print(f"PICKLING EXAMPLES to {file_examples}")
+    with open(file_examples, "wb") as f:
+        pickle.dump(examples, f)
 
-print("CONVERTING EXAMPLES TO A MATRIX")
-feat_matrix = make_matrix(examples)
+    print("CONVERTING EXAMPLES TO A MATRIX")
+    feat_matrix = make_matrix(examples)
 
-file_matrix = f"features_V{VERSION_NB}"
-print(f"SAVING MATRIX to {file_matrix}")
-sparse.save_npz(file_matrix, feat_matrix, compressed=True)
+    file_matrix = f"features_V{VERSION_NB}"
+    print(f"SAVING MATRIX to {file_matrix}")
+    sparse.save_npz(file_matrix, feat_matrix, compressed=True)
 
 
 #%% SEPARATION TRAIN/DEV/TEST TODO --> à faire dans MODELE SVM ?

@@ -33,37 +33,38 @@ conllformater = ConllFormatter(nlp, conversion_maps={"misc": {"SpaceAfter=No": "
 nlp.add_pipe(conllformater)
 
 
-with open("2.corpus_no_ei.conll") as f, open("3.1.corpus_spacied.conll", "w") as g:
-    content = f.read()
-    sentences = content.split("\n\n")
-    for sent in sentences[:-1]:
-        lines = sent.splitlines()
-        eis = []
-        for line in lines:
-            if line.startswith("# doc path"):
-                g.write(line + "\n")
-                print(line)
-            elif line.startswith("# sent_id"):
-                g.write(line + "\n")
-            elif line.startswith("# text_no_ei"):
-                g.write(line + "\n")
-                _, text = line.split(" =  ")
-            elif line.startswith(tuple("0123456789")):
-                id, og, is_ei, no_ei = line.split("\t")
-                if is_ei == "True":
-                    eis.append(f"ei={og}")
-                else:
-                    eis.append("_")
-        doc = nlp(text)
-        conll = doc._.conll_pd
+if __name__ == "__main__":
+    with open("2.corpus_no_ei.conll") as f, open("3.1.corpus_spacied.conll", "w") as g:
+        content = f.read()
+        sentences = content.split("\n\n")
+        for sent in sentences[:-1]:
+            lines = sent.splitlines()
+            eis = []
+            for line in lines:
+                if line.startswith("# doc path"):
+                    g.write(line + "\n")
+                    print(line)
+                elif line.startswith("# sent_id"):
+                    g.write(line + "\n")
+                elif line.startswith("# text_no_ei"):
+                    g.write(line + "\n")
+                    _, text = line.split(" =  ")
+                elif line.startswith(tuple("0123456789")):
+                    id, og, is_ei, no_ei = line.split("\t")
+                    if is_ei == "True":
+                        eis.append(f"ei={og}")
+                    else:
+                        eis.append("_")
+            doc = nlp(text)
+            conll = doc._.conll_pd
 
-        conll["misc"] = eis
-        conll["id"] = conll.index
+            conll["misc"] = eis
+            conll["id"] = conll.index
 
-        ## printable version (for logs)
-        # print(conll.to_string(index=None), end="\n\n")
+            ## printable version (for logs)
+            # print(conll.to_string(index=None), end="\n\n")
 
-        # version to add to the corpus (one tab between each value)
-        conll_str = conll.to_csv(sep="\t", index=None, header=False)
-        g.write(conll_str)
-        g.write("\n\n")
+            # version to add to the corpus (one tab between each value)
+            conll_str = conll.to_csv(sep="\t", index=None, header=False)
+            g.write(conll_str)
+            g.write("\n\n")

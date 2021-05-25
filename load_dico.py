@@ -5,7 +5,7 @@ import os
 import logging
 from pytrie import StringTrie
 
-path = "../French-Dictionary-master/dictionary"
+path = "French-Dictionary-master/dictionary"
 
 files = os.listdir(path)
 
