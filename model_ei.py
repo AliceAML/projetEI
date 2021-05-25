@@ -1,5 +1,6 @@
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
@@ -9,14 +10,15 @@ from sklearn.metrics import (
 import pickle
 from scipy import sparse
 from sklearn.preprocessing import StandardScaler
+import argparse
 
 # import example list
 with open("examples_V2", "rb") as f:
-    examples = pickle.load(f)
+    EXAMPLES = pickle.load(f)
 
-print(f"Loaded list of {len(examples[0])} examples")
+print(f"Loaded list of {len(EXAMPLES[0])} examples")
 
-y = examples[2]
+Y = EXAMPLES[2]
 
 with open("features_V2.npz", "rb") as f:
     X = sparse.load_npz(f)
@@ -25,7 +27,7 @@ print(f"Loaded features with shape {X.shape}")
 
 # divide test train
 print("TRAIN-TEST SPLIT")
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=8)
+X_TRAIN, X_TEST, Y_TRAIN, Y_TEST = train_test_split(X, Y, test_size=0.2, random_state=8)
 
 # print("STANDARDIZE FEATURES")
 # scaler = StandardScaler(with_mean=False)
@@ -33,58 +35,79 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 # X_train = scaler.transform(X_train)
 # X_test = scaler.transform(X_test)
 
-model = SVC(verbose=True, max_iter=1000)  # FIXME optimal class_weight ?
+
+def trainSVM():
+    """Train SVM model
+    Returns trained model."""
+    model = SVC(verbose=True, max_iter=1000)
+
+    print("TRAINING SVM MODEL")
+    model.fit(X_TRAIN, Y_TRAIN)
+
+    return model
 
 
-print("TRAINING")
-model.fit(X_train, y_train)
+def trainRandomForest():
+    model = RandomForestClassifier(
+        n_estimators=100, max_depth=15, verbose=3, class_weight="balanced"
+    )
 
-print("----RESULTS OF TRAINING")
-y_pred_train = model.predict(X_train)
-print("ACCURACY :", accuracy_score(y_train, y_pred_train))
-print("RECALL : ", recall_score(y_train, y_pred_train))
-print("PRECISION : ", precision_score(y_train, y_pred_train))
-print(confusion_matrix(y_train, y_pred_train, labels=[0, 1]))
+    model.fit(X_TRAIN, Y_TRAIN)
 
-print("-----EVALUATION ON TEST DATASET")
-y_pred = model.predict(X_test)
-print("ACCURACY :", accuracy_score(y_test, y_pred))
-print("RECALL : ", recall_score(y_test, y_pred))
-print("PRECISION : ", precision_score(y_test, y_pred))
-print(confusion_matrix(y_test, y_pred, labels=[0, 1]))
-
-print("---- EVALUATION ON ALL EXAMPLES X")
-print("for analysis...")
-y_pred_X = model.predict(X)
-
-with open("model_V1", "wb") as f:
-    pickle.dump(model, f)
+    return model
 
 
-# TODO save model
+def save_model(model, version_num):
+    """Save model to a file (pickle)
+
+    Args:
+        model (sklearn model): trained model
+        version_num ([type]): version number to differentiate from previous stored models.
+    """
+    type_model = str(type(model)).split(".")[4]
+    filename = f"{type_model}_V{version_num}"
+    print(f"PICKLING TO {filename}")
+    with open(filename, "wb") as f:
+        pickle.dump(model, f)
+
+
+def eval(model, x, y):
+    """
+    Use model to classify examples from x and compare to Y.
+    Prints confusion matrix, accuracy, recall and precision.
+    """
+    y_pred = model.predict(x)
+    print("ACCURACY :", accuracy_score(y, y_pred))
+    print("RECALL : ", recall_score(y, y_pred))
+    print("PRECISION : ", precision_score(y, y_pred))
+    print(confusion_matrix(y, y_pred))
+
 
 # TODO implémenter grid_search
 
 # A UTILISER UNIQUEMENT avec X
-def false_negatives():
-    for i, gold in enumerate(y):
+def false_negatives(model):
+    y_pred_X = model.predict(X)
+    # FIXME pprint sentence
+    for i, gold in enumerate(Y):
         if gold == 1 and y_pred_X[i] == 0:
-            print(examples[2][i])
-            print(examples[0][i])
-            print(examples[1][i])
+            print(EXAMPLES[2][i])
+            print(EXAMPLES[0][i])
+            print(EXAMPLES[1][i])
             print()
 
 
-def false_positives():
-    for i, gold in enumerate(y):
+def false_positives(model):
+    y_pred_X = model.predict(X)
+    for i, gold in enumerate(Y):
         if gold == 0 and y_pred_X[i] == 1:
-            print(examples[2][i])
-            print(examples[0][i])
-            print(examples[1][i])
+            print(EXAMPLES[2][i])
+            print(EXAMPLES[0][i])
+            print(EXAMPLES[1][i])
             print()
 
 
-def predict(sentence: str):
+def predict_sentence(sentence: str):
     # tokenize
     # make examples
     # vectorize
@@ -92,7 +115,7 @@ def predict(sentence: str):
     pass
 
 
-def process(sentence: str):
+def process_sentence(sentence: str):
     # predict
     # transform
     pass
