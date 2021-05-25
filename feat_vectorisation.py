@@ -81,24 +81,14 @@ def form_vectorize(tokenlists):
 and returns the full matrix with form, pos and label"""
 # input : [[w1, w2, w3,...], [cont1, cont2, ...], [label1, label2,...]]
 # renvoyer [vecteur1, vecteur2] (matrice de vecteurs)
-def make_matrix(examples, labels=True):
-    if labels:
-        words, contexts, gold_labels = examples
-        gold = sparse.csr_matrix(gold_labels)
-    else:
-        words, contexts = examples
-
+def make_matrix(examples):
+    words, contexts, *_ = examples
     word_form = form_vectorize(words)
     word_xpos = xpos_vectorize(words)
     context_forms = form_vectorize(contexts)
     context_xpos = xpos_vectorize(contexts)
 
-    if labels:
-        return sparse.hstack(
-            [word_form, word_xpos, context_forms, context_xpos, gold.transpose()]
-        )
-    else:
-        return sparse.hstack([word_form, word_xpos, context_forms, context_xpos])
+    return sparse.hstack([word_form, word_xpos, context_forms, context_xpos])
 
 
 """Make a list of examples from a CONLL file
@@ -156,7 +146,7 @@ def select_examples(examples, ratio_neg_to_pos: int):
         ),
         axis=1,
     )
-    print(df.info)
+    print(df.info())
     sample_neg = df[df["labels"] == 0].sample(nbr_neg)
     all_pos = df[df["labels"] == 1]
     reduced_df = pd.concat((sample_neg, all_pos), axis=0).sort_index()
@@ -185,7 +175,7 @@ xpos_vectorizer = CountVectorizer(
 
 try:
     print("UNPICKLING VECTORIZERS")
-    with open("vectorizers_V1", "rb") as f:
+    with open("vectorizers_V2", "rb") as f:
         form_vectorizer = pickle.load(f)
         xpos_vectorizer = pickle.load(f)
 except Exception as e:
@@ -201,7 +191,7 @@ except Exception as e:
 
 try:
     print("UNPICKLING EXAMPLES")
-    with open("examples_V1", "rb") as f:
+    with open("examples_V2", "rb") as f:
         examples = pickle.load(f)
 except Exception as e:
     print(e)
@@ -228,7 +218,7 @@ with open(file_examples, "wb") as f:
     pickle.dump(examples, f)
 
 print("CONVERTING EXAMPLES TO A MATRIX")
-feat_matrix = make_matrix(examples, labels=True)
+feat_matrix = make_matrix(examples)
 
 file_matrix = f"features_V{VERSION_NB}"
 print(f"SAVING MATRIX to {file_matrix}")
