@@ -198,28 +198,27 @@ if args.convert:
     print(args.convert)
     print(*list(prediction))
 
+with open("examples_V5", "rb") as f:  # EXAMPLE VERSION
+    EXAMPLES = pickle.load(f)
+
+print(f"Loaded list of {len(EXAMPLES[0])} examples")
+
+Y = EXAMPLES[3]
+
+with open("features_V5.npz", "rb") as f:  # CORRESPONDING FEATURES
+    X = sparse.load_npz(f)
+print(f"Loaded features with shape {X.shape}")
+
+# divide test train
+print("TRAIN-TEST SPLIT (80\%-20\%)")
+X_TRAIN, X_TEST, Y_TRAIN, Y_TEST = train_test_split(X, Y, test_size=0.2, random_state=8)
+if args.train == "RandomForest":
+    model = trainRandomForest()
+if args.train == "SVM":
+    model = trainSVM()
+
 if args.train:
     # import example list
-    with open("examples_V5", "rb") as f:  # EXAMPLE VERSION
-        EXAMPLES = pickle.load(f)
-
-    print(f"Loaded list of {len(EXAMPLES[0])} examples")
-
-    Y = EXAMPLES[3]
-
-    with open("features_V5.npz", "rb") as f:  # CORRESPONDING FEATURES
-        X = sparse.load_npz(f)
-    print(f"Loaded features with shape {X.shape}")
-
-    # divide test train
-    print("TRAIN-TEST SPLIT (80\%-20\%)")
-    X_TRAIN, X_TEST, Y_TRAIN, Y_TEST = train_test_split(
-        X, Y, test_size=0.2, random_state=8
-    )
-    if args.train == "RandomForest":
-        model = trainRandomForest()
-    if args.train == "SVM":
-        model = trainSVM()
 
     eval(model, X_TEST, Y_TEST)
 
