@@ -18,6 +18,7 @@ from scipy import sparse
 from sklearn.preprocessing import StandardScaler
 import argparse
 import conllu
+import timeit
 
 from tokenization import word_tokenize
 from extract_features_spacy import nlp
@@ -36,7 +37,7 @@ WINDOW_SIZE = 2
 def trainSVM():
     """Train SVM model
     Returns trained model."""
-    model = SVC(verbose=True, max_iter=1000)
+    model = SVC(verbose=True, max_iter=1000)  # TODO ADD TIMER
 
     print("TRAINING SVM MODEL")
     model.fit(X_TRAIN, Y_TRAIN)
@@ -46,7 +47,7 @@ def trainSVM():
 
 def trainRandomForest():
     model = RandomForestClassifier(
-        n_estimators=75, max_depth=10, verbose=3, class_weight="balanced"
+        n_estimators=75, max_depth=10, verbose=2, class_weight="balanced"
     )
 
     model.fit(X_TRAIN, Y_TRAIN)
@@ -86,19 +87,35 @@ def eval(model, x, y):
     print("PRECISION : ", precision_score(y, y_pred))
     print(confusion_matrix(y, y_pred))
 
+    print("--BASELINE")
+    if x is X_TEST:
+        bl = baseline(EXAMPLES_TEST)
+    else:
+        bl = baseline(EXAMPLES_TRAIN)
+    print("ACCURACY :", accuracy_score(y, bl))
+    print("RECALL : ", recall_score(y, bl))
+    print("PRECISION : ", precision_score(y, bl))
+    print(confusion_matrix(y, bl))
+
 
 # TODO implémenter grid_search
 
 # TODO importance des features dans random forest
+# features les + importantes ? (préciser si c'est dans token ou context)
 
-# TODO baseline for comparison : predict all nouns & eval !
 
-
-def baseline():
-    """Predicts 1 if token is a NOUN (only on X)"""
+def baseline(examples):
+    """Predicts 1 if token is a NOUN (only on X)"""  # FIXME
     baseline_predict = []
-    for ex in EXAMPLES[0]:
-        if ex[0]["upos"] == "NOUN":
+    for ex in examples[0]:
+        if (
+            ex[0]["upos"]
+            in [
+                "NOUN",
+                "PRON",
+            ]
+            or "Tense=Past|VerbForm=Part" in ex[0]["xpos"]
+        ):
             baseline_predict.append(1)
         else:
             baseline_predict.append(0)
@@ -106,41 +123,41 @@ def baseline():
     return baseline_predict
 
 
-def false_negatives(model):
-    """Print ALL false negatives in X (TRAIN + TEST !)"""
-    y_pred_X = model.predict(X)
-    for i, gold in enumerate(Y):
+def false_negatives(model, x, y, examples):
+    """Print ALL false negatives in X (TRAIN + TEST !)"""  # FIXME
+    y_pred_X = model.predict(x)
+    for i, gold in enumerate(y):
         if gold == 1 and y_pred_X[i] == 0:
-            pprint_example(i)
-            print_example(i)
+            pprint_example(examples, i)
+            print_example(examples, i)
             print()
 
 
-def false_positives(model):
-    """Print ALL false positives in X (TRAIN + TEST !)"""
-    y_pred_X = model.predict(X)
-    for i, gold in enumerate(Y):
+def false_positives(model, x, y, examples):
+    """Print ALL false positives in X (TRAIN + TEST !)"""  # FIXME
+    y_pred_X = model.predict(x)
+    for i, gold in enumerate(y):
         if gold == 0 and y_pred_X[i] == 1:
-            pprint_example(i)
-            print_example(i)
+            pprint_example(examples, i)
+            print_example(examples, i)
             print()
 
 
-def pprint_example(i: int):
-    """Print token + context as a string"""
-    context_forms = [x["form"] for x in EXAMPLES[1][i]]
+def pprint_example(examples, i: int):
+    """Print token + context as a string"""  # FIXME nouveau format d'exemples :(
+    context_forms = [x["form"] for x in examples[1][i]]
     begin = context_forms[0:WINDOW_SIZE]  # récup forms
-    token = EXAMPLES[0][i][0]["form"]
+    token = examples[0][i][0]["form"]
     end = context_forms[WINDOW_SIZE:]  # récup forms
     output = " ".join(begin + ["_"] + [token] + ["_"] + end)
     print(output)
 
 
-def print_example(i):
-    print("gold_label :", EXAMPLES[3][i])  # label
-    print("token :", EXAMPLES[0][i])  # token
-    print("context :", EXAMPLES[1][i])  # context
-    print("sentence :", EXAMPLES[2][i])
+def print_example(examples, i):  # FIXME nouveau format d'exemple
+    # print("gold_label :", examples[3][i])  # label
+    print("token :", examples[0][i])  # token
+    print("context :", examples[1][i])  # context
+    print("sentence :", examples[2][i])
 
 
 def predict_sentence(sentence: str):
@@ -180,7 +197,7 @@ parser.add_argument(
     "--eval",
     type=str,
     help='display evaluation metrics for current model. Choose "all" for baseline.',
-    choices=["test", "train", "all"],
+    choices=["test", "train"],
 )
 parser.add_argument(
     "--train", choices=["RandomForest", "SVM"], help="Choose a model to train."
@@ -207,7 +224,31 @@ print(f"Loaded features with shape {X.shape}")
 
 # divide test train
 print("TRAIN-TEST SPLIT (80\%-20\%)")
-X_TRAIN, X_TEST, Y_TRAIN, Y_TEST = train_test_split(X, Y, test_size=0.2, random_state=8)
+EXAMPLES_TRAIN = [None] * 3
+EXAMPLES_TEST = [None] * 3
+
+(
+    X_TRAIN,
+    X_TEST,
+    Y_TRAIN,
+    Y_TEST,
+    EXAMPLES_TRAIN[0],  # tokens
+    EXAMPLES_TEST[0],
+    EXAMPLES_TRAIN[1],  # contexts
+    EXAMPLES_TEST[1],
+    EXAMPLES_TRAIN[2],  # sentences
+    EXAMPLES_TEST[2],
+) = train_test_split(
+    X,
+    Y,
+    EXAMPLES[0],  # tokens
+    EXAMPLES[1],  # contexts
+    EXAMPLES[2],  # sentences
+    test_size=0.2,
+    random_state=8,
+)
+
+# TODO améliorer baseline, faux positifs et faux négatifs (train ou test !)
 
 
 args = parser.parse_args()
@@ -223,18 +264,11 @@ else:
     model = load_model("RandomForestClassifier_V2")  # DEFAULT MODEL
 
 if args.eval == "test":
+    print("Evaluation on TEST")
     eval(model, X_TEST, Y_TEST)
 elif args.eval == "train":
+    print("Evaluation on TRAIN")
     eval(model, X_TRAIN, Y_TRAIN)
-elif args.eval == "all":
-    print("Eval sur corpus train + test")
-    eval(model, X_TRAIN, Y_TRAIN)
-    print("----BASELINE")
-    bl = baseline()
-    print("-----ACCURACY :", accuracy_score(Y, bl))
-    print("-----RECALL : ", recall_score(Y, bl))
-    print("-----PRECISION : ", precision_score(Y, bl))
-    print(confusion_matrix(Y, bl))
 
 if args.convert:
     prediction = predict_sentence(args.convert)
@@ -246,6 +280,7 @@ if args.train:
         model = trainRandomForest()
     if args.train == "SVM":
         model = trainSVM()
+    print("EVALUATION ON TEST")
     eval(model, X_TEST, Y_TEST)
 
 
