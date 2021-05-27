@@ -12,7 +12,7 @@ f1 = lambda x: {"form": f"d{x}", "xpos": None}
 f2 = lambda x: {"form": f"f{x}", "xpos": None}
 FAKE_WORDS = [f(i) for i in range(WINDOW_SIZE) for f in (f1, f2)]
 
-VERSION_NB = 4
+VERSION_NB = 5
 
 
 # http://www.davidsbatista.net//blog/2018/02/28/TfidfVectorizer/
@@ -125,15 +125,18 @@ def make_examples_file(file, labels=True):
             words += w
             contexts += c
             sentences += s
+            if labels:
 
-            def is_ei(misc):
-                if misc:
-                    return 1
-                else:
-                    return 0
+                def is_ei(misc):
+                    if misc:
+                        return 1
+                    else:
+                        return 0
 
-            gold_labels += [is_ei(x["misc"]) for x in sent]
-    return [words, contexts, sentences, gold_labels]
+                gold_labels += [is_ei(x["misc"]) for x in sent]
+    if labels:
+        return [words, contexts, sentences, gold_labels]
+    return [words, contexts, sentences]
 
 
 def select_examples(examples, ratio_neg_to_pos: int):
@@ -146,12 +149,13 @@ def select_examples(examples, ratio_neg_to_pos: int):
     Returns:
         [type]: [description]
     """
-    nbr_neg = sum(examples[2]) * ratio_neg_to_pos
+    nbr_neg = sum(examples[3]) * ratio_neg_to_pos
     df = pd.concat(
         (
             pd.Series(examples[0], name="ex"),
             pd.Series(examples[1], name="contexts"),
-            pd.Series(examples[2], name="labels"),
+            pd.Series(examples[2], name="sentences"),
+            pd.Series(examples[3], name="labels"),
         ),
         axis=1,
     )
@@ -163,6 +167,7 @@ def select_examples(examples, ratio_neg_to_pos: int):
     return [
         list(reduced_df["ex"]),
         list(reduced_df["contexts"]),
+        list(reduced_df["sentences"]),
         list(reduced_df["labels"]),
     ]
 
@@ -210,7 +215,7 @@ except Exception as e:
 if __name__ == "__main__":
     try:
         print("UNPICKLING EXAMPLES")
-        with open("examples_V1", "rb") as f:
+        with open("examples_V5", "rb") as f:
             examples = pickle.load(f)
     except Exception as e:
         print(e)

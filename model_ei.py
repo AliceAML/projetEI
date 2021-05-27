@@ -45,7 +45,7 @@ def trainSVM():
 
 def trainRandomForest():
     model = RandomForestClassifier(
-        n_estimators=100, max_depth=15, verbose=3, class_weight="balanced"
+        n_estimators=75, max_depth=10, verbose=3, class_weight="balanced"
     )
 
     model.fit(X_TRAIN, Y_TRAIN)
@@ -63,7 +63,7 @@ def save_model(model, version_num):
     """
     type_model = str(type(model)).split(".")[-1].strip("'>")
     filename = f"{type_model}_V{version_num}"
-    print(f"PICKLING TO {filename}")
+    print(f"PICKLING MODEL TO {filename}")
     with open(filename, "wb") as f:
         pickle.dump(model, f)
 
@@ -120,9 +120,10 @@ def pprint_example(i: int):
 
 
 def print_example(i):
-    print("gold_label :", EXAMPLES[2][i])  # label
+    print("gold_label :", EXAMPLES[3][i])  # label
     print("token :", EXAMPLES[0][i])  # token
     print("context :", EXAMPLES[1][i])  # context
+    print("sentence :", EXAMPLES[2][i])
 
 
 def predict_sentence(sentence: str):
@@ -164,6 +165,12 @@ parser.add_argument(
     help="display evaluation metrics for current model",
     choices=["test", "train"],
 )
+parser.add_argument(
+    "--train", choices=["RandomForest", "SVM"], help="Choose a model to train."
+)
+parser.add_argument(
+    "--save", help="Save the model with a chosen version number.", type=int
+)
 # parser.add_argument("--verbose", type=bool)
 # parser.add_argument(
 #     "--model", type=str, choices=["SVM", "RandomForest"], help="choose model"
@@ -179,7 +186,7 @@ if args.load:
         print(e)
     print("Model loaded")
 else:
-    model = load_model("RandomForestClassifier_V1")
+    model = load_model("RandomForestClassifier_V2")  # DEFAULT MODEL
 
 if args.eval == "test":
     eval(model, X_TEST, Y_TEST)
@@ -190,17 +197,17 @@ if args.convert:
     prediction = predict_sentence(args.convert)
     print(args.convert)
     print(*list(prediction))
-else:
-    # A METTRE EN OPTIONNEL QUAND DEV FINI TODO
+
+if args.train:
     # import example list
-    with open("examples_V2", "rb") as f:
+    with open("examples_V5", "rb") as f:  # EXAMPLE VERSION
         EXAMPLES = pickle.load(f)
 
     print(f"Loaded list of {len(EXAMPLES[0])} examples")
 
-    Y = EXAMPLES[2]
+    Y = EXAMPLES[3]
 
-    with open("features_V2.npz", "rb") as f:
+    with open("features_V5.npz", "rb") as f:  # CORRESPONDING FEATURES
         X = sparse.load_npz(f)
     print(f"Loaded features with shape {X.shape}")
 
@@ -209,3 +216,12 @@ else:
     X_TRAIN, X_TEST, Y_TRAIN, Y_TEST = train_test_split(
         X, Y, test_size=0.2, random_state=8
     )
+    if args.train == "RandomForest":
+        model = trainRandomForest()
+    if args.train == "SVM":
+        model = trainSVM()
+
+    eval(model, X_TEST, Y_TEST)
+
+if args.save:
+    save_model(model, args.save)
