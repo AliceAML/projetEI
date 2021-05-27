@@ -121,9 +121,9 @@ def pprint_example(i: int):
 
 def print_example(i):
     print("gold_label :", EXAMPLES[3][i])  # label
-    print("sentence :", EXAMPLES[2][i])
     print("token :", EXAMPLES[0][i])  # token
     print("context :", EXAMPLES[1][i])  # context
+    print("sentence :", EXAMPLES[2][i])
 
 
 def predict_sentence(sentence: str):
