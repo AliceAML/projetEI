@@ -12,6 +12,7 @@ from sklearn.metrics import (
     confusion_matrix,
     precision_score,
     recall_score,
+    f1_score,
 )
 import pickle
 from scipy import sparse
@@ -22,7 +23,13 @@ import timeit
 
 from tokenization import word_tokenize
 from extract_features_spacy import nlp
-from feat_vectorisation import dummy_fun, make_examples_parsed_conll_sent, make_matrix
+from feat_vectorisation import (
+    dummy_fun,
+    make_examples_parsed_conll_sent,
+    make_matrix,
+    xpos_vectorizer,
+    form_vectorizer,
+)
 
 
 WINDOW_SIZE = 2
@@ -37,7 +44,7 @@ WINDOW_SIZE = 2
 def trainSVM():
     """Train SVM model
     Returns trained model."""
-    model = SVC(verbose=True, max_iter=1000)  # TODO ADD TIMER
+    model = SVC(verbose=True, max_iter=1000)
 
     print("TRAINING SVM MODEL")
     model.fit(X_TRAIN, Y_TRAIN)
@@ -45,12 +52,28 @@ def trainSVM():
     return model
 
 
-def trainRandomForest():
-    model = RandomForestClassifier(
-        n_estimators=75, max_depth=10, verbose=2, class_weight="balanced"
-    )
-
-    model.fit(X_TRAIN, Y_TRAIN)
+def trainRandomForest(gridsearch=False):
+    if gridsearch:
+        random_forest = RandomForestClassifier(class_weight="balanced", verbose=1)
+        parameters = {
+            "n_estimators": (50, 75, 100, 150),
+            "max_depth": (10, 15, 20),
+            # "min_samples_split": (1, 2, 4),
+            # "max_features": (None, "auto", "sqrt", "log2"),
+            # "class_weight": ("balanced", "balanced_subsample", None),
+        }
+        gs = GridSearchCV(
+            estimator=random_forest, param_grid=parameters, scoring="f1", verbose=3
+        )  # FIXME
+        gs.fit(X_TRAIN, Y_TRAIN)
+        print(gs.best_params_)
+        print(gs.best_score_)
+        model = gs.best_estimator_
+    else:
+        model = RandomForestClassifier(
+            n_estimators=75, max_depth=10, class_weight="balanced"
+        )
+        model.fit(X_TRAIN, Y_TRAIN)
 
     return model
 
@@ -85,6 +108,7 @@ def eval(model, x, y):
     print("ACCURACY :", accuracy_score(y, y_pred))
     print("RECALL : ", recall_score(y, y_pred))
     print("PRECISION : ", precision_score(y, y_pred))
+    print("F1 SCORE : ", f1_score(y, y_pred))
     print(confusion_matrix(y, y_pred))
 
     print("--BASELINE")
@@ -95,17 +119,19 @@ def eval(model, x, y):
     print("ACCURACY :", accuracy_score(y, bl))
     print("RECALL : ", recall_score(y, bl))
     print("PRECISION : ", precision_score(y, bl))
+    print("F1 SCORE : ", f1_score(y, bl))
     print(confusion_matrix(y, bl))
 
 
-# TODO implémenter grid_search
-
-# TODO importance des features dans random forest
-# features les + importantes ? (préciser si c'est dans token ou context)
+def most_important_RF(model):
+    assert isinstance(
+        model, RandomForestClassifier
+    ), "This model is not a RandomForestClassifier"
+    # TODO renvoyer features les + importantes
 
 
 def baseline(examples):
-    """Predicts 1 if token is a NOUN (only on X)"""  # FIXME
+    """Predicts 1 if token is a NOUN (only on X)"""
     baseline_predict = []
     for ex in examples[0]:
         if (
@@ -124,7 +150,7 @@ def baseline(examples):
 
 
 def false_negatives(model, x, y, examples):
-    """Print ALL false negatives in X (TRAIN + TEST !)"""  # FIXME
+    """Print ALL false negatives in X (TRAIN + TEST !)"""
     y_pred_X = model.predict(x)
     for i, gold in enumerate(y):
         if gold == 1 and y_pred_X[i] == 0:
@@ -134,7 +160,7 @@ def false_negatives(model, x, y, examples):
 
 
 def false_positives(model, x, y, examples):
-    """Print ALL false positives in X (TRAIN + TEST !)"""  # FIXME
+    """Print ALL false positives in X (TRAIN + TEST !)"""
     y_pred_X = model.predict(x)
     for i, gold in enumerate(y):
         if gold == 0 and y_pred_X[i] == 1:
@@ -144,7 +170,7 @@ def false_positives(model, x, y, examples):
 
 
 def pprint_example(examples, i: int):
-    """Print token + context as a string"""  # FIXME nouveau format d'exemples :(
+    """Print token + context as a string"""
     context_forms = [x["form"] for x in examples[1][i]]
     begin = context_forms[0:WINDOW_SIZE]  # récup forms
     token = examples[0][i][0]["form"]
@@ -153,7 +179,7 @@ def pprint_example(examples, i: int):
     print(output)
 
 
-def print_example(examples, i):  # FIXME nouveau format d'exemple
+def print_example(examples, i):
     # print("gold_label :", examples[3][i])  # label
     print("token :", examples[0][i])  # token
     print("context :", examples[1][i])  # context
@@ -184,7 +210,9 @@ def process_sentence(sentence: str):
     pass
 
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(
+    description="Automatically transform sentences into inclusive writing (French)."
+)
 parser.add_argument(
     "--convert", type=str, help="convert the given string into écriture inclusive."
 )
@@ -203,12 +231,17 @@ parser.add_argument(
     "--train", choices=["RandomForest", "SVM"], help="Choose a model to train."
 )
 parser.add_argument(
+    "--gridsearch",
+    type=bool,
+    help="search best parameters during training with a grid search",
+    default=False,
+)
+parser.add_argument(
     "--save", help="Save the model with a chosen version number.", type=int
 )
-# parser.add_argument("--verbose", type=bool)
-# parser.add_argument(
-#     "--model", type=str, choices=["SVM", "RandomForest"], help="choose model"
-# )
+
+
+args = parser.parse_args()
 
 
 with open("examples_V5", "rb") as f:  # EXAMPLE VERSION
@@ -248,10 +281,6 @@ EXAMPLES_TEST = [None] * 3
     random_state=8,
 )
 
-# TODO améliorer baseline, faux positifs et faux négatifs (train ou test !)
-
-
-args = parser.parse_args()
 
 if args.load:
     print(f"Loading {args.load} ....")
@@ -277,7 +306,7 @@ if args.convert:
 
 if args.train:
     if args.train == "RandomForest":
-        model = trainRandomForest()
+        model = trainRandomForest(gridsearch=args.gridsearch)
     if args.train == "SVM":
         model = trainSVM()
     print("EVALUATION ON TEST")
