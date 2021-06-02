@@ -19,7 +19,7 @@ from scipy import sparse
 from sklearn.preprocessing import StandardScaler
 import argparse
 import conllu
-import timeit
+import pandas as pd
 
 from tokenization import word_tokenize
 from extract_features_spacy import nlp
@@ -41,13 +41,29 @@ WINDOW_SIZE = 2
 # X_test = scaler.transform(X_test)
 
 
-def trainSVM():
+def trainSVM(gridsearch=False):
     """Train SVM model
-    Returns trained model."""
-    model = SVC(verbose=True, max_iter=1000)
+    Returns trained model."""  # TODO utiliser halving + augmenter max_iter
+    if gridsearch:  # TODO add scaler to pipeline
+        svc = SVC(verbose=True, max_iter=10000)
+        parameters = {
+            "C": [0.1, 1, 10, 100],
+            "gamma": [1, 0.1, 0.01, 0.001],
+            "kernel": ["rbf", "poly", "sigmoid"],
+        }
+        gs = GridSearchCV(estimator=svc, param_grid=parameters, scoring="f1", verbose=3)
+        gs.fit(X_TRAIN, Y_TRAIN)
+        print(f"Best parameters : {gs.best_params_}")
+        print(f"Best f1 score : {gs.best_score_}")
+        df = pd.Dataframe(gs.cv_results_)
+        print(df)
+        df.to_csv("gridsearch_results_SVM.csv", sep="\t")
+        model = gs.best_estimator_
+    else:
+        model = SVC(verbose=True, max_iter=1000)
 
-    print("TRAINING SVM MODEL")
-    model.fit(X_TRAIN, Y_TRAIN)
+        print("TRAINING SVM MODEL")
+        model.fit(X_TRAIN, Y_TRAIN)
 
     return model
 
@@ -56,18 +72,23 @@ def trainRandomForest(gridsearch=False):
     if gridsearch:
         random_forest = RandomForestClassifier(class_weight="balanced", verbose=1)
         parameters = {
-            "n_estimators": (50, 75, 100, 150),
-            "max_depth": (10, 15, 20),
+            # "n_estimators": (50, 75, 100, 150),
+            # "max_depth": (10, 15, 20),
+            "n_estimators": (150, 175, 200),
+            "max_depth": (20, 25, 30)
             # "min_samples_split": (1, 2, 4),
             # "max_features": (None, "auto", "sqrt", "log2"),
             # "class_weight": ("balanced", "balanced_subsample", None),
         }
         gs = GridSearchCV(
             estimator=random_forest, param_grid=parameters, scoring="f1", verbose=3
-        )  # FIXME
+        )
         gs.fit(X_TRAIN, Y_TRAIN)
-        print(gs.best_params_)
-        print(gs.best_score_)
+        print(f"Best parameters : {gs.best_params_}")
+        print(f"Best f1 score : {gs.best_score_}")
+        df = pd.Dataframe(gs.cv_results_)
+        print(df)
+        df.to_csv("gridsearch_results_SVM.csv", sep="\t")
         model = gs.best_estimator_
     else:
         model = RandomForestClassifier(
@@ -135,11 +156,7 @@ def baseline(examples):
     baseline_predict = []
     for ex in examples[0]:
         if (
-            ex[0]["upos"]
-            in [
-                "NOUN",
-                "PRON",
-            ]
+            ex[0]["upos"] in ["NOUN", "PRON", "ADJ"]
             or "Tense=Past|VerbForm=Part" in ex[0]["xpos"]
         ):
             baseline_predict.append(1)
@@ -308,7 +325,7 @@ if args.train:
     if args.train == "RandomForest":
         model = trainRandomForest(gridsearch=args.gridsearch)
     if args.train == "SVM":
-        model = trainSVM()
+        model = trainSVM(gridsearch=args.gridsearch)
     print("EVALUATION ON TEST")
     eval(model, X_TEST, Y_TEST)
 
