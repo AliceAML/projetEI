@@ -171,6 +171,27 @@ def select_examples(examples, ratio_neg_to_pos: int):
         list(reduced_df["labels"]),
     ]
 
+    """Takes in feature index and returns feature name
+    """
+
+
+def get_features(i: int) -> str:
+    len_form = len(form_vectorizer.vocabulary_)
+    len_xpos = len(xpos_vectorizer.vocabulary_)
+    if i <= len_form:
+        return form_vectorizer.get_feature_names()[i] + " - token"
+    elif i <= len_form + len_xpos:
+        return xpos_vectorizer.get_feature_names()[i - len_form] + " - token"
+    elif i <= 2 * len_form + len_xpos:
+        return (
+            form_vectorizer.get_feature_names()[i - len_form - len_xpos] + " - context"
+        )
+    else:
+        return (
+            xpos_vectorizer.get_feature_names()[i - (2 * len_form) - len_xpos]
+            + " - context"
+        )
+
 
 #%% MAIN
 form_vectorizer = CountVectorizer(

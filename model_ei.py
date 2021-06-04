@@ -20,6 +20,7 @@ from sklearn.preprocessing import StandardScaler
 import argparse
 import conllu
 import pandas as pd
+import numpy as np
 
 from tokenization import word_tokenize
 from extract_features_spacy import nlp
@@ -29,6 +30,7 @@ from feat_vectorisation import (
     make_matrix,
     xpos_vectorizer,
     form_vectorizer,
+    get_features,
 )
 
 
@@ -145,10 +147,17 @@ def eval(model, x, y):
 
 
 def most_important_RF(model):
+    """Prints the 20 most important features for this RandomForest Classifier"""
     assert isinstance(
         model, RandomForestClassifier
     ), "This model is not a RandomForestClassifier"
-    # TODO renvoyer features les + importantes
+    order = np.argsort(model.feature_importances_)
+    top = order[-50:][::-1]  # slice and reverse
+    for i, feat in enumerate(top):
+        if model.feature_importances_[feat] > 0:
+            print(
+                f"{i:03} - feat n°{feat:06} {get_features(feat):<25} importance: {model.feature_importances_[feat]}"
+            )
 
 
 def baseline(examples):
@@ -227,6 +236,7 @@ def process_sentence(sentence: str):
     pass
 
 
+###############################################################################""
 parser = argparse.ArgumentParser(
     description="Automatically transform sentences into inclusive writing (French)."
 )
@@ -259,6 +269,7 @@ parser.add_argument(
 
 
 args = parser.parse_args()
+###############################################################
 
 
 with open("examples_V5", "rb") as f:  # EXAMPLE VERSION
