@@ -285,6 +285,8 @@ def convert(pred, separator):
                         )
                     except:
                         result.append(token["form"])
+                else:
+                    result.append(token["form"])
             else:
                 result.append(token["form"])
                 # TODO gérer les mots inconnus avec des règles
