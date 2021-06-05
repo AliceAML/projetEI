@@ -274,7 +274,7 @@ def convert(pred, separator):
                             )
                         )
                     except:
-                        result.append(token["lemma"])
+                        result.append(token["form"])
                 # MASC SING
                 elif "Masc|Number=Sing" in token["xpos"]:
                     try:
@@ -284,7 +284,7 @@ def convert(pred, separator):
                             )
                         )
                     except:
-                        result.append(token["lemma"])
+                        result.append(token["form"])
             else:
                 result.append(token["form"])
                 # TODO gérer les mots inconnus avec des règles
