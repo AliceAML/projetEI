@@ -17,10 +17,13 @@ from sklearn.metrics import (
 import pickle
 from scipy import sparse
 from sklearn.preprocessing import StandardScaler
+from sklearn.tree import export_graphviz
 import argparse
 import conllu
 import pandas as pd
 import numpy as np
+from subprocess import call
+
 
 from tokenization import word_tokenize
 from extract_features_spacy import nlp
@@ -150,7 +153,7 @@ def most_important_RF(model):
     """Prints the 20 most important features for this RandomForest Classifier"""
     assert isinstance(
         model, RandomForestClassifier
-    ), "This model is not a RandomForestClassifier"
+    ), "Model needs to be a RandomForestClassifier"
     order = np.argsort(model.feature_importances_)
     top = order[-50:][::-1]  # slice and reverse
     for i, feat in enumerate(top):
@@ -158,6 +161,32 @@ def most_important_RF(model):
             print(
                 f"{i:03} - feat n°{feat:06} {get_features(feat):<25} importance: {model.feature_importances_[feat]}"
             )
+
+
+def visualize_tree(rfmodel):
+    """Visualize one tree from the random forest as an image
+    source : https://towardsdatascience.com/how-to-visualize-a-decision-tree-from-a-random-forest-in-python-using-scikit-learn-38ad2d75f21c"""
+    assert isinstance(
+        model, RandomForestClassifier
+    ), "Model needs to be a RandomForestClassifier"
+    # extract one tree
+    estimator = rfmodel.estimators_[5]
+    features = (
+        form_vectorizer.get_feature_names() + xpos_vectorizer.get_feature_names()
+    ) * 2
+    # Export as dot file
+    export_graphviz(
+        estimator,
+        out_file="tree.dot",
+        feature_names=features,
+        rounded=True,
+        proportion=False,
+        precision=2,
+        filled=True,
+    )
+    # Convert to png
+    call(["dot", "-Tpng", "tree.dot", "-o", "tree.png", "-Gdpi=100"])
+    print("Image exported to tree.png")
 
 
 def baseline(examples):
