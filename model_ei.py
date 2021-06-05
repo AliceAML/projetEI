@@ -322,7 +322,10 @@ parser = argparse.ArgumentParser(
     description="Automatically transform sentences into inclusive writing (French)."
 )
 parser.add_argument(
-    "--convert", type=str, help="convert the given string into écriture inclusive."
+    "-c",
+    "--convert",
+    type=str,
+    help="convert the given string into écriture inclusive.",
 )
 parser.add_argument(
     "-s",
@@ -346,8 +349,8 @@ parser.add_argument(
     "--train", choices=["RandomForest", "SVM"], help="Choose a model to train."
 )
 parser.add_argument(
-    "--gridsearch",
     "-g",
+    "--gridsearch",
     help="search best parameters during training with a grid search",
     action="store_true",
 )
