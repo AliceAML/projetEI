@@ -23,6 +23,7 @@ import conllu
 import pandas as pd
 import numpy as np
 from subprocess import call
+from collections import defaultdict
 
 
 from tokenization import word_tokenize
@@ -35,6 +36,7 @@ from feat_vectorisation import (
     form_vectorizer,
     get_features,
 )
+from convert_ei import convert
 
 
 WINDOW_SIZE = 2
@@ -241,6 +243,58 @@ def print_example(examples, i):
     print("sentence :", examples[2][i])
 
 
+def find_root(word1, word2):
+    """Return the common prefix of both words"""
+    root = ""
+    for char1, char2 in zip(word1, word2):
+        if char1 == char2:
+            root += char1
+        else:
+            break
+    return root
+
+
+def merge(mas, fem, separator):
+    root = find_root(mas, fem)
+    return mas + separator + fem[len(root) :]
+
+
+def convert(pred, separator):
+    result = []
+    for prediction, token in pred:
+        verboseprint(prediction, token, token["xpos"])
+        if prediction == 1:
+            # MASC PLUR
+            if token["lemma"] in lexique.keys():
+                if "Masc|Number=Plur" in token["xpos"]:
+                    try:
+                        result.append(
+                            merge(
+                                token["form"][:-1],
+                                lexique[token["lemma"]]["fp"],
+                                separator,
+                            )
+                        )
+                    except:
+                        result.append(token["lemma"])
+                # MASC SING
+                elif "Masc|Number=Sing" in token["xpos"]:
+                    try:
+                        result.append(
+                            merge(
+                                token["form"], lexique[token["lemma"]]["fs"], separator
+                            )
+                        )
+                    except:
+                        result.append(token["lemma"])
+            else:
+                result.append(token["form"])
+                # TODO gérer les mots inconnus avec des règles
+        else:
+            result.append(token["form"])
+    return " ".join(result)
+
+
 def predict_sentence(sentence: str):
     # tokenize
     tokens = word_tokenize(sentence)
@@ -254,15 +308,15 @@ def predict_sentence(sentence: str):
     feats = make_matrix(examples)
     # # predict
     y_pred = model.predict(feats)
-    return zip(tokens, y_pred)
+    return zip(y_pred, dico_conll[0])
 
 
-def process_sentence(sentence: str):
+def process_sentence(sentence: str, separator):
     # predict
     pred = predict_sentence(sentence)
     # transform
-    # TODO transformation phrase
-    pass
+    # print(*pred, sep="\n")
+    print(convert(pred, separator))
 
 
 ###############################################################################""
@@ -271,6 +325,13 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     "--convert", type=str, help="convert the given string into écriture inclusive."
+)
+parser.add_argument(
+    "-s",
+    "--separator",
+    help="Choose separator for EI forms. Default : ·",
+    type=str,
+    default="·",
 )
 parser.add_argument(
     "--load",
@@ -288,18 +349,28 @@ parser.add_argument(
 )
 parser.add_argument(
     "--gridsearch",
-    type=bool,
+    "-g",
     help="search best parameters during training with a grid search",
-    default=False,
+    action="store_true",
 )
 parser.add_argument(
     "--save", help="Save the model with a chosen version number.", type=int
 )
+parser.add_argument("--verbose", "-v", action="store_true")
 
 
 args = parser.parse_args()
+
 ###############################################################
 
+if args.verbose:
+
+    def verboseprint(*args):
+        print(*args)
+
+
+else:
+    verboseprint = lambda *a: None  # do-nothing function
 
 with open("examples_V5", "rb") as f:  # EXAMPLE VERSION
     EXAMPLES = pickle.load(f)
@@ -357,9 +428,21 @@ elif args.eval == "train":
     eval(model, X_TRAIN, Y_TRAIN)
 
 if args.convert:
-    prediction = predict_sentence(args.convert)
+    lexique = defaultdict(dict)
+    with open("Lexique383/Lexique383.tsv") as f:
+        for line in f.readlines():
+            fields = line.split()
+            ortho = fields[0]
+            lemme = fields[2]
+            cgram = fields[3]
+            genre = fields[4]
+            nombre = fields[5]
+
+            if genre:  # if the token has a gender
+                lexique[lemme][genre + nombre] = ortho
+
     print(args.convert)
-    print(*list(prediction))
+    process_sentence(args.convert, args.separator)
 
 if args.train:
     if args.train == "RandomForest":
