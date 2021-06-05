@@ -36,8 +36,6 @@ from feat_vectorisation import (
     form_vectorizer,
     get_features,
 )
-from convert_ei import convert
-
 
 WINDOW_SIZE = 2
 
