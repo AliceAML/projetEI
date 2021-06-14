@@ -14,6 +14,7 @@ from sklearn.metrics import (
     recall_score,
     f1_score,
 )
+from sklearn.pipeline import Pipeline
 import pickle
 from scipy import sparse
 from sklearn.preprocessing import StandardScaler
@@ -50,27 +51,38 @@ def trainSVM(gridsearch=False):
     """Train SVM model
     Returns trained model."""  # TODO utiliser halving + augmenter max_iter
     if gridsearch:  # TODO add scaler to pipeline
-        svc = SVC(verbose=True, max_iter=10000)
+        pipeGS = Pipeline(
+            steps=[
+                ("scaler", StandardScaler(with_mean=False)),
+                ("svc", SVC(verbose=True, max_iter=10)),
+            ]
+        )
         parameters = {
-            "C": [0.1, 1, 10, 100],
-            "gamma": [1, 0.1, 0.01, 0.001],
-            "kernel": ["rbf", "poly", "sigmoid"],
+            "svc__C": [0.1, 1, 10, 100],
+            "svc__gamma": [1, 0.1, 0.01, 0.001],
+            "svc__kernel": ["rbf", "poly", "sigmoid"],
         }
-        gs = GridSearchCV(estimator=svc, param_grid=parameters, scoring="f1", verbose=3)
+        gs = GridSearchCV(
+            estimator=pipeGS, param_grid=parameters, scoring="f1", verbose=3
+        )
         gs.fit(X_TRAIN, Y_TRAIN)
         print(f"Best parameters : {gs.best_params_}")
         print(f"Best f1 score : {gs.best_score_}")
         df = pd.Dataframe(gs.cv_results_)
         print(df)
         df.to_csv("gridsearch_results_SVM.csv", sep="\t")
-        model = gs.best_estimator_
+        pipe = gs.best_estimator_
     else:
-        model = SVC(verbose=True, max_iter=1000)
-
+        pipe = Pipeline(
+            steps=[
+                ("scaler", StandardScaler(with_mean=False)),
+                ("svc", SVC(verbose=True, max_iter=10000)),
+            ]
+        )
         print("TRAINING SVM MODEL")
-        model.fit(X_TRAIN, Y_TRAIN)
+        pipe.fit(X_TRAIN, Y_TRAIN)
 
-    return model
+    return pipe
 
 
 def trainRandomForest(gridsearch=False):
@@ -307,6 +319,7 @@ def predict_sentence(sentence: str):
     # vectorize
     feats = make_matrix(examples)
     # # predict
+    # print(model.predict(feats))
     y_pred = model.predict(feats)
     return zip(y_pred, dico_conll[0])
 
@@ -446,12 +459,13 @@ if args.convert:
 
     print(args.convert)
     process_sentence(args.convert, args.separator)
+    # predict_sentence(args.convert)
 
 if args.train:
     if args.train == "RandomForest":
         model = trainRandomForest(gridsearch=args.gridsearch)
     if args.train == "SVM":
-        model = trainSVM(gridsearch=args.gridsearch)
+        model = trainSVM()
     print("EVALUATION ON TEST")
     eval(model, X_TEST, Y_TEST)
 
