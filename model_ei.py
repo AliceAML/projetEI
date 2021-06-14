@@ -13,6 +13,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     f1_score,
+    plot_confusion_matrix,
 )
 from sklearn.pipeline import Pipeline
 import pickle
@@ -25,6 +26,7 @@ import pandas as pd
 import numpy as np
 from subprocess import call
 from collections import defaultdict
+import matplotlib.pyplot as plt
 
 
 from tokenization import word_tokenize
@@ -49,8 +51,8 @@ WINDOW_SIZE = 2
 
 def trainSVM(gridsearch=False):
     """Train SVM model
-    Returns trained model."""  # TODO utiliser halving + augmenter max_iter
-    if gridsearch:  # TODO add scaler to pipeline
+    Returns trained model."""
+    if gridsearch:
         pipeGS = Pipeline(
             steps=[
                 ("scaler", StandardScaler(with_mean=False)),
@@ -162,17 +164,34 @@ def eval(model, x, y):
 
 
 def most_important_RF(model):
-    """Prints the 20 most important features for this RandomForest Classifier"""
+    """Prints importance of each feature class"""
     assert isinstance(
         model, RandomForestClassifier
     ), "Model needs to be a RandomForestClassifier"
-    order = np.argsort(model.feature_importances_)
-    top = order[-50:][::-1]  # slice and reverse
-    for i, feat in enumerate(top):
-        if model.feature_importances_[feat] > 0:
-            print(
-                f"{i:03} - feat n°{feat:06} {get_features(feat):<25} importance: {model.feature_importances_[feat]}"
-            )
+    # order = np.argsort(model.feature_importances_)
+    # top = order[-50:][::-1]  # slice and reverse
+    # for i, feat in enumerate(top):
+    #     if model.feature_importances_[feat] > 0:
+    #         print(
+    #             f"{i:03} - feat n°{feat:06} {get_features(feat):<25} importance: {model.feature_importances_[feat]}"
+    #         )
+    len_form = len(form_vectorizer.vocabulary_)
+    len_xpos = len(xpos_vectorizer.vocabulary_)
+    importance = {
+        "token": sum(model.feature_importances_[:len_form]),
+        "pos": sum(model.feature_importances_[len_form : len_form + len_xpos]),
+        "context_token": sum(
+            model.feature_importances_[len_form + len_xpos : 2 * len_form + len_xpos]
+        ),
+        "context_pos": sum(model.feature_importances_[2 * len_form + len_xpos :]),
+    }
+
+    plt.bar(
+        importance.keys(),
+        importance.values(),
+        color=["turquoise", "lightseagreen", "gold", "goldenrod"],
+    )
+    plt.show()
 
 
 def visualize_tree(rfmodel):
@@ -191,6 +210,7 @@ def visualize_tree(rfmodel):
         estimator,
         out_file="tree.dot",
         feature_names=features,
+        class_names=["0", "1"],
         rounded=True,
         proportion=False,
         precision=2,
@@ -445,7 +465,7 @@ elif args.eval == "train":
 
 if args.convert:
     lexique = defaultdict(dict)
-    with open("Lexique383/Lexique383.tsv") as f:
+    with open("Lexique383.tsv") as f:
         for line in f.readlines():
             fields = line.split()
             ortho = fields[0]
@@ -456,6 +476,7 @@ if args.convert:
 
             if genre:  # if the token has a gender
                 lexique[lemme][genre + nombre] = ortho
+    verboseprint("Lexique loaded")
 
     print(args.convert)
     process_sentence(args.convert, args.separator)
@@ -472,3 +493,5 @@ if args.train:
 
 if args.save:
     save_model(model, args.save)
+
+most_important_RF(model)
