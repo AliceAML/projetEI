@@ -456,6 +456,14 @@ if args.load:
 else:
     model = load_model("RandomForestClassifier_V2")  # DEFAULT MODEL
 
+if args.train:
+    if args.train == "RandomForest":
+        model = trainRandomForest(gridsearch=args.gridsearch)
+    if args.train == "SVM":
+        model = trainSVM()
+    print("EVALUATION ON TEST")
+    eval(model, X_TEST, Y_TEST)
+
 if args.eval == "test":
     print("Evaluation on TEST")
     eval(model, X_TEST, Y_TEST)
@@ -481,14 +489,6 @@ if args.convert:
     print(args.convert)
     process_sentence(args.convert, args.separator)
     # predict_sentence(args.convert)
-
-if args.train:
-    if args.train == "RandomForest":
-        model = trainRandomForest(gridsearch=args.gridsearch)
-    if args.train == "SVM":
-        model = trainSVM()
-    print("EVALUATION ON TEST")
-    eval(model, X_TEST, Y_TEST)
 
 
 if args.save:
