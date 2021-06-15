@@ -493,5 +493,3 @@ if args.train:
 
 if args.save:
     save_model(model, args.save)
-
-most_important_RF(model)
