@@ -454,7 +454,7 @@ if args.load:
         print(e)
     print("Model loaded")
 else:
-    model = load_model("RandomForestClassifier_V2")  # DEFAULT MODEL
+    model = load_model("Pipeline_V2")  # DEFAULT MODEL
 
 if args.train:
     if args.train == "RandomForest":
